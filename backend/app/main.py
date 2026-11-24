@@ -45,7 +45,18 @@ async def lifespan(app: FastAPI):
     if get_settings().scheduler_enabled:
         from .modules.payments import scheduler_loop
         task = asyncio.create_task(scheduler_loop())
+    push_task = None
+    if "webpush" in get_settings().notify_providers.split(","):
+        if not all((get_settings().vapid_subject, get_settings().vapid_private_key, get_settings().vapid_public_key)):
+            raise RuntimeError("Web Push requires VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT")
+        from importlib.util import find_spec
+        if find_spec("pywebpush") is None:
+            raise RuntimeError("Install the backend push extra to enable Web Push")
+        from .modules.delivery import run_delivery
+        push_task = asyncio.create_task(run_delivery())
     yield
+    if push_task:
+        push_task.cancel()
     if task:
         task.cancel()
 

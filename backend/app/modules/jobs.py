@@ -1,12 +1,12 @@
 """Job lifecycle: strict state machine. Illegal transitions raise."""
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from ..country_config import get_country
 from ..db import utcnow
-from ..models import HirerProfile, Job, JobStatus as S, User
+from ..models import Assignment, HirerProfile, Job, JobStatus as S, User
 from ..settings import get_settings
 from . import audit, wage_floor
 from .abuse import limiter
@@ -44,6 +44,19 @@ def transition(db: Session, job: Job, to: S, actor: str, data: dict | None = Non
     return job
 
 
+def booked_count():
+    return (select(func.count(Assignment.id)).where(
+        Assignment.job_id == Job.id, Assignment.status != "cancelled"
+    ).correlate(Job).scalar_subquery())
+
+
+def lock_for_booking(db: Session, job: Job) -> int:
+    # A write takes a per-job lock on Postgres and serializes writers on SQLite.
+    db.execute(update(Job).where(Job.id == job.id).values(status=Job.status))
+    db.refresh(job)
+    return db.scalar(select(booked_count()).select_from(Job).where(Job.id == job.id))
+
+
 REQUIRED = ["task", "headcount", "location_text", "start_at", "daily_rate", "hours_per_day", "payment_day"]
 
 
@@ -68,7 +81,8 @@ def create_job(db: Session, hirer: User, f: dict, *, readback_verified: bool = F
     if n_today >= s.max_jobs_per_hirer_per_day:
         raise JobRejected("daily_limit")
     n_open = db.scalar(select(func.count()).select_from(Job).where(
-        Job.hirer_id == hirer.id, Job.status.in_([S.open.value, S.offers.value])))
+        Job.hirer_id == hirer.id, Job.start_at >= utcnow(), booked_count() < Job.headcount,
+        Job.status.in_([S.open.value, S.offers.value, S.assigned.value])))
     if n_open >= s.max_open_jobs_per_hirer:
         raise JobRejected("too_many_open")
 
@@ -107,5 +121,11 @@ def create_job(db: Session, hirer: User, f: dict, *, readback_verified: bool = F
     db.flush()
     audit.log(db, hirer.id, "job", job.id, "created", None, S.open.value,
               {"rate": job.daily_rate, "rule": chk.rule.version, "rule_verified": chk.rule.verified})
+    from .geo import nearby_workers
+    from .notifications import notify
+    for worker, profile, dist in nearby_workers(db, lat, lon, cfg.max_radius_km, country=cfg.code,
+                                               trade=job.task, limit=None):
+        if dist <= (profile.radius_km or cfg.default_radius_km) * 1000:
+            notify(db, worker.id, "nearby_job", job.id)
     db.commit()
     return job

@@ -61,7 +61,6 @@ export default function PostJob() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const [retry, setRetry] = useState<(() => void) | null>(null);
-  const [posted, setPosted] = useState(false);
   const [transcript, setTranscript] = useState("");
 
   const run = (fn: () => Promise<any>) => {
@@ -76,17 +75,12 @@ export default function PostJob() {
 
   const post = async () => {
     setBusy(true); setErr(null);
-    try { await api("/jobs", { method: "POST", body: { ...fields, transcript, readback_verified: draft?.verifier?.ok === true }, retries: 0 }); setPosted(true); }
+    try { const job = await api("/jobs", { method: "POST", body: { ...fields, transcript, readback_verified: draft?.verifier?.ok === true }, retries: 0 }); nav("/jobs-mine/"+job.id); }
     catch (e) { setErr(e); setRetry(() => post); }
     setBusy(false);
   };
   const confirmByVoice = async (txt: string) => { const r = await api<{ intent: string }>("/voice/intent", { method: "POST", body: { transcript: txt, lang } }); if (r.intent === "yes") post(); else if (r.intent === "no") reset(); };
   const reset = () => { setDraft(null); setFields({}); setTranscript(""); setErr(null); };
-
-  if (posted) return (
-    <div><ScreenHeader title={t("ui.post.title")} speakText={t("ui.post.posted")} auto />
-      <div className="p-6 space-y-6 text-center"><p className="text-6xl" aria-hidden>✅</p><p className="text-2xl font-bold">{t("ui.post.posted")}</p>
-        <BigButton onClick={() => nav("/jobs-mine")}>{t("ui.tab.myjobs")}</BigButton></div></div>);
 
   const unverified = draft?.wage?.warnings?.some((w: any) => w.code === "unverified_rule");
   return (

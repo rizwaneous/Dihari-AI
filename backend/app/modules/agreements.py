@@ -31,12 +31,14 @@ def terms_hash(terms: dict) -> str:
     return hashlib.sha256(json.dumps(terms, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
-def select_workers(db: Session, job: Job, hirer: User, offer_ids: list[str]) -> list[Assignment]:
+def select_workers(db: Session, job: Job, hirer: User, offer_ids: list[str], *, direct=False) -> list[Assignment]:
     if job.hirer_id != hirer.id:
         raise AgreementError("forbidden")
-    if job.status not in (S.offers.value, S.assigned.value):
+    taken = jobs.lock_for_booking(db, job)
+    if job.start_at < utcnow():
+        raise AgreementError("job_expired")
+    if job.flagged or job.status not in (S.offers.value, S.assigned.value):
         raise AgreementError("job_not_open_for_selection")
-    taken = len(db.scalars(select(Assignment).where(Assignment.job_id == job.id)).all())
     if taken + len(offer_ids) > job.headcount:
         raise AgreementError("exceeds_headcount", {"headcount": job.headcount, "taken": taken})
     out = []
@@ -48,11 +50,20 @@ def select_workers(db: Session, job: Job, hirer: User, offer_ids: list[str]) -> 
         ag = Agreement(job_id=job.id, worker_id=o.worker_id, hirer_id=job.hirer_id, terms=terms, terms_hash=terms_hash(terms))
         db.add(ag)
         db.flush()
-        asg = Assignment(job_id=job.id, worker_id=o.worker_id, agreement_id=ag.id)
+        asg = db.scalar(select(Assignment).where(Assignment.job_id == job.id, Assignment.worker_id == o.worker_id))
+        if asg is None:
+            asg = Assignment(job_id=job.id, worker_id=o.worker_id)
+        elif asg.status != "cancelled":
+            raise AgreementError("already_selected")
+        asg.agreement_id = ag.id
+        asg.status = "confirmed" if direct else "assigned"
+        asg.worker_confirmed_at = utcnow() if direct else None
         db.add(asg)
         o.status = "selected"
         audit.log(db, hirer.id, "agreement", ag.id, "created", data={"worker": o.worker_id, "rate": o.rate, "hash": ag.terms_hash})
-        notify(db, o.worker_id, "assigned", job.id)
+        notify(db, o.worker_id, "booked" if direct else "assigned", job.id)
+        if direct:
+            notify(db, job.hirer_id, "worker_confirmed", job.id)
         out.append(asg)
     if job.headcount == taken + len(offer_ids):  # all seats filled: close remaining offers
         for o in db.scalars(select(Offer).where(Offer.job_id == job.id, Offer.status == "pending")):
@@ -65,11 +76,13 @@ def select_workers(db: Session, job: Job, hirer: User, offer_ids: list[str]) -> 
 def worker_confirm(db: Session, asg: Assignment, worker: User) -> Assignment:
     if asg.worker_id != worker.id:
         raise AgreementError("forbidden")
-    if asg.status != "assigned":
+    job = db.get(Job, asg.job_id)
+    jobs.lock_for_booking(db, job)
+    db.refresh(asg)
+    if asg.status != "assigned" or job.status != S.assigned.value:
         raise AgreementError("bad_state", asg.status)
     asg.status, asg.worker_confirmed_at = "confirmed", utcnow()
     audit.log(db, worker.id, "assignment", asg.id, "confirmed", "assigned", "confirmed")
-    job = db.get(Job, asg.job_id)
     notify(db, job.hirer_id, "worker_confirmed", job.id)
     db.commit()
     return asg
@@ -79,10 +92,15 @@ def worker_cancel(db: Session, asg: Assignment, worker: User) -> Assignment:
     if asg.worker_id != worker.id or asg.status not in ("assigned", "confirmed"):
         raise AgreementError("forbidden")
     job = db.get(Job, asg.job_id)
-    if job.status not in (S.assigned.value,):
+    jobs.lock_for_booking(db, job)
+    db.refresh(asg)
+    if job.status != S.assigned.value or asg.status not in ("assigned", "confirmed"):
         raise AgreementError("too_late")
     audit.log(db, worker.id, "assignment", asg.id, "cancelled", asg.status, "cancelled")
     asg.status = "cancelled"
+    offer = db.scalar(select(Offer).where(Offer.job_id == job.id, Offer.worker_id == worker.id))
+    if offer:
+        offer.status = "withdrawn"
     notify(db, job.hirer_id, "worker_cancelled", job.id)
     db.commit()
     return asg

@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from ..models import Job, JobStatus as S
 from ..settings import get_settings
+from ..db import utcnow
+from .jobs import booked_count
 
 EARTH_M = 6371008.8
 
@@ -44,7 +46,8 @@ def nearby_jobs(db: Session, lat: float, lon: float, radius_km: float, *, trades
                 country: str | None = None, limit: int = 50) -> list[tuple[Job, float]]:
     """Open jobs within radius, nearest first. Excludes flagged jobs."""
     r = radius_km * 1000
-    q = select(Job).where(Job.status.in_([S.open.value, S.offers.value]), Job.flagged == False)  # noqa: E712
+    q = select(Job).where(Job.status.in_([S.open.value, S.offers.value, S.assigned.value]),
+                          booked_count() < Job.headcount, Job.start_at >= utcnow(), Job.flagged == False)  # noqa: E712
     if country:
         q = q.where(Job.country_code == country)
     if trades:
@@ -75,7 +78,7 @@ def fuzz_location(job_id: str, lat: float, lon: float) -> tuple[float, float]:
 
 
 def nearby_workers(db: Session, lat: float, lon: float, radius_km: float, *, trade: str | None = None,
-                   country: str | None = None, limit: int = 50):
+                   country: str | None = None, limit: int | None = 50):
     """Workers whose profile point is within radius. Returns [(User, WorkerProfile, dist_m)] nearest first."""
     from ..models import User, WorkerProfile
     r = radius_km * 1000

@@ -1,6 +1,8 @@
 """Notifications: web push first, SMS fallback, behind provider interfaces.
 Real providers are added later (docs/PROVIDERS.md). `log` provider = in-app inbox (DB row)."""
 import logging
+
+import httpx
 from typing import Protocol
 
 from sqlalchemy import select
@@ -34,6 +36,23 @@ class StubSms:
         return True
 
 
+class TwilioSms:
+    name = "twilio"
+
+    def send(self, phone: str, text: str) -> bool:
+        cfg = get_settings()
+        if not all((cfg.twilio_account_sid, cfg.twilio_auth_token, cfg.twilio_from_number)):
+            return False
+        try:
+            response = httpx.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{cfg.twilio_account_sid}/Messages.json",
+                auth=(cfg.twilio_account_sid, cfg.twilio_auth_token),
+                data={"To": phone, "From": cfg.twilio_from_number, "Body": text}, timeout=8)
+            return response.is_success
+        except httpx.HTTPError:
+            return False
+
+
 class InboxPush:
     """Delivers to the in-app inbox (polled by the PWA). Always succeeds."""
     name = "log"
@@ -42,7 +61,7 @@ class InboxPush:
         return True
 
 
-_SMS: dict[str, type] = {"stub": StubSms}
+_SMS: dict[str, type] = {"stub": StubSms, "twilio": TwilioSms}
 _PUSH: dict[str, type] = {"log": InboxPush}
 _instances: dict[tuple, object] = {}
 
@@ -77,6 +96,7 @@ def notify(db: Session, user_id: str, title: str, body: str) -> str:
     user = db.get(User, user_id)
     if not user:
         return "none"
+    nearby_alert = title == "nearby_job"
     from .. import i18n
     tk = f"notify.{title}.title"
     if i18n.get_raw(tk, user.locale) is not None:  # `title` is a message key → localise per recipient
@@ -84,6 +104,9 @@ def notify(db: Session, user_id: str, title: str, body: str) -> str:
     has_sub = db.scalars(select(PushSubscription).where(PushSubscription.user_id == user_id)).first() is not None
     channel = None
     for name in [n.strip() for n in get_settings().notify_providers.split(",") if n.strip()]:
+        if name == "webpush" and has_sub and get_settings().vapid_private_key:
+            channel = name
+            break
         p = get_push(name)
         if p is None:
             continue
@@ -95,6 +118,8 @@ def notify(db: Session, user_id: str, title: str, body: str) -> str:
                 break
         except Exception as e:  # noqa: BLE001
             log.warning("push provider %s failed: %s", name, e)
+    if channel is None and nearby_alert:
+        channel = "log"
     if channel is None:
         try:
             get_sms().send(user.phone, f"{title}: {body}")
@@ -103,5 +128,5 @@ def notify(db: Session, user_id: str, title: str, body: str) -> str:
             log.warning("sms fallback failed: %s", e)
             channel = "failed"
     db.add(Notification(user_id=user_id, channel=channel, title=title, body=body,
-                        status="failed" if channel == "failed" else "sent"))
+                        status={"webpush": "queued", "failed": "failed"}.get(channel, "sent")))
     return channel

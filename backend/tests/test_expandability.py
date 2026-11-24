@@ -33,7 +33,7 @@ def zz(tmp_path, monkeypatch):
     (locd / "zz.json").write_text(json.dumps({"_meta": {"name": "Zorbish", "dir": "ltr"},
         "readback.job": "ZORB {headcount}/{task}/{location}/{rate}{currency}", "currency.ZED": "zeds",
         "violation.below_min_wage": "ZORB below {min} {currency}"}))
-    (locd / "en.json").write_text((Path(get_settings().locales_dir) / "en.json").read_text(encoding="utf-8"))
+    (locd / "en.json").write_text((Path(get_settings().locales_dir) / "en.json").read_text(encoding="utf-8"), encoding="utf-8")
     monkeypatch.setenv("CONFIG_DIR", str(cfgd)); monkeypatch.setenv("LOCALES_DIR", str(locd))
     monkeypatch.setenv("DEFAULT_COUNTRY", "ZZ")
     get_settings.cache_clear(); service.reset()

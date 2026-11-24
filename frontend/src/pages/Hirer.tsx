@@ -19,8 +19,8 @@ export function MyJobs() {
         {data?.map((j) => (
           <Link key={j.id} to={`/jobs-mine/${j.id}`} className="block rounded-2xl border-4 border-gray-600 p-4 space-y-1 min-h-[96px]">
             <div className="flex justify-between text-2xl font-bold"><span><span aria-hidden>{j.task_icon}</span> {j.task_name} · {j.location_text}</span><span>{country?.currency.symbol} {j.daily_rate}</span></div>
-            <div className="flex justify-between text-lg"><span>{new Date(j.start_at).toLocaleString(bcp47, { weekday: "short", hour: "numeric" })} · {t("ui.job.workers", { n: j.headcount })}</span>
-              <span className="font-bold">{t(`ui.status.${j.status}`)}</span></div>
+            <div className="flex justify-between text-lg"><span>{new Date(j.start_at).toLocaleString(bcp47, { weekday: "short", hour: "numeric" })} · {t("map.booked", { n:j.booked, total:j.headcount })}</span>
+              <span className="font-bold">{j.booking_expired && !j.booked ? t("map.expired") : t(`ui.status.${j.status}`)}</span></div>
             {j.offer_count > 0 && j.status !== "assigned" && <p className="text-lg font-bold text-green-800">🔔 {t("ui.myjobs.offers", { n: j.offer_count })}</p>}
           </Link>))}
       </div>
@@ -37,9 +37,9 @@ export function JobDetail() {
   const nav = useNavigate();
   const [sort, setSort] = useState("best");
   const [actErr, setActErr] = useState<unknown>(null);
-  const job = useAsync(() => api<any>(`/jobs/${id}`), [id]);
-  const offers = useAsync(() => api<any[]>(`/jobs/${id}/offers?sort=${sort}`), [id, sort]);
-  const asg = useAsync(() => api<any[]>(`/jobs/${id}/assignments`), [id]);
+  const job = useAsync(() => api<any>(`/jobs/${id}`), [id], true);
+  const offers = useAsync(() => api<any[]>(`/jobs/${id}/offers?sort=${sort}`), [id, sort], true);
+  const asg = useAsync(() => api<any[]>(`/jobs/${id}/assignments`), [id], true);
   const j = job.data;
   const sym = country?.currency.symbol || "";
   const act = async (path: string, body: any = {}) => {
@@ -52,16 +52,16 @@ export function JobDetail() {
   const confirmed = asg.data?.filter((a) => a.status === "confirmed").length || 0;
   return (
     <div className="pb-28">
-      <ScreenHeader title={`${j.task_icon} ${j.task_name}`} speakText={`${j.task_name} ${j.location_text}. ${t("ui.job.rate", { rate: j.daily_rate })}. ${t(`ui.status.${j.status}`)}`} />
+      <ScreenHeader title={`${j.task_icon} ${j.task_name}`} speakText={`${j.task_name} ${j.location_text}. ${t("ui.job.rate", { rate: j.daily_rate })}. ${j.booking_expired && !j.booked ? t("map.expired") : t(`ui.status.${j.status}`)}`} />
       <div className="p-4 space-y-4">
         <button className="underline text-lg min-h-[56px]" onClick={() => nav("/jobs-mine")}>← {t("ui.back")}</button>
         <div className="rounded-2xl bg-gray-100 p-4 text-xl font-bold space-y-1">
           <p>{j.location_text} · {sym} {j.daily_rate} · {t("ui.job.workers", { n: j.headcount })}</p>
-          <p className="text-green-800">{t(`ui.status.${j.status}`)}</p>
+          <p>{t("map.booked", {n:j.booked,total:j.headcount})}</p><p className="text-green-800">{j.booking_expired && !j.booked ? t("map.expired") : t(`ui.status.${j.status}`)}</p>
         </div>
         {!!actErr && <ErrorRetry error={actErr} onRetry={() => setActErr(null)} />}
 
-        {open && (j.status === "open" || j.status === "offers" || j.status === "assigned") && (
+        {open && !j.booking_expired && (j.status === "open" || j.status === "offers" || j.status === "assigned") && (
           <section className="space-y-3">
             <h2 className="text-2xl font-bold">{t("ui.offers.title")}</h2>
             <div className="flex gap-2 overflow-x-auto" role="group">{SORTS.map((s) => <button key={s} onClick={() => setSort(s)} className={`min-h-[56px] px-4 rounded-2xl font-bold text-lg border-4 whitespace-nowrap ${s === sort ? "bg-brand text-white border-brand" : "border-gray-500"}`}>{t(`ui.offers.sort.${s}`)}</button>)}</div>

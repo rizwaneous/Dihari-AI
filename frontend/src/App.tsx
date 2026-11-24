@@ -1,10 +1,11 @@
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Skeleton, TabBar } from "./components/ui";
 import { useI18n } from "./i18n";
-import { FirstRun, Login, ProfileForm } from "./pages/Onboarding";
+import { useWorkLocation } from "./components/useWorkLocation";
 import PostJob from "./pages/PostJob";
+import { MapHome } from "./pages/MapHome";
 import { JobDetail, MyJobs } from "./pages/Hirer";
-import { Counter, Jobs, Me, MyWork } from "./pages/Worker";
+import { Counter, Me, MyWork } from "./pages/Worker";
 import { useSession } from "./session";
 import { useEffect, useState } from "react";
 
@@ -17,36 +18,35 @@ function OfflineBanner() {
 
 export default function App() {
   const { ready, t } = useI18n();
-  const { me, loading, role } = useSession();
-  const nav = useNavigate();
+  const { me, loading } = useSession();
+  const location = useWorkLocation();
+  const route = useLocation();
   if (!ready || loading) return <Skeleton />;
-  if (!me) return role ? <Login /> : <FirstRun />;
-  const p = me.profile;
-  const needsSetup = me.role === "worker" ? !p || !p.trades?.length || !p.area_name : !p;
-  if (needsSetup) return <ProfileForm onSaved={() => nav("/")} />;
+  if (!me) return <MapHome key="guest" location={location} />;
   return (
     <>
       <OfflineBanner />
       {me.role === "hirer" ? (
         <>
           <Routes>
-            <Route path="/" element={<PostJob />} />
+            <Route path="/" element={<MapHome key={me.id} location={location} />} />
+            <Route path="/post/assisted" element={<PostJob />} />
             <Route path="/jobs-mine" element={<MyJobs />} />
             <Route path="/jobs-mine/:id" element={<JobDetail />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
-          <TabBar tabs={[{ to: "/", icon: "🎤", label: t("ui.tab.post") }, { to: "/jobs-mine", icon: "📋", label: t("ui.tab.myjobs") }]} />
+          {route.pathname !== "/" && <TabBar tabs={[{ to: "/", icon: "◎", label: t("map.area") }, { to: "/jobs-mine", icon: "📋", label: t("ui.tab.myjobs") }]} />}
         </>
       ) : (
         <>
           <Routes>
-            <Route path="/" element={<Jobs />} />
+            <Route path="/" element={<MapHome key={me.id} location={location} />} />
             <Route path="/counter/:id" element={<Counter />} />
             <Route path="/work" element={<MyWork />} />
             <Route path="/me" element={<Me />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
-          <TabBar tabs={[{ to: "/", icon: "🔍", label: t("ui.tab.jobs") }, { to: "/work", icon: "🛠️", label: t("ui.tab.mywork") }, { to: "/me", icon: "👤", label: t("ui.tab.me") }]} />
+          {route.pathname !== "/" && <TabBar tabs={[{ to: "/", icon: "◎", label: t("map.area") }, { to: "/work", icon: "🛠️", label: t("ui.tab.mywork") }, { to: "/me", icon: "👤", label: t("ui.tab.me") }]} />}
         </>
       )}
     </>

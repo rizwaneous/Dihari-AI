@@ -26,7 +26,7 @@ def request_otp(body: OtpReq, db: Session = Depends(get_db)):
     try:
         return auth.request_otp(db, body.phone, body.country)
     except auth.AuthError as e:
-        raise HTTPException(400, e.code)
+        raise HTTPException(503 if e.code == "sms_unavailable" else 400, e.code)
     except RateLimited as e:
         raise HTTPException(429, "rate_limited", headers={"Retry-After": str(e.retry_after)})
 

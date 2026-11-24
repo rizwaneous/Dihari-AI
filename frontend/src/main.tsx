@@ -6,6 +6,7 @@ import App from "./App";
 import { I18nProvider } from "./i18n";
 import { SessionProvider } from "./session";
 import "./index.css";
+import "./market.css";
 
 registerSW({ immediate: true });
 createRoot(document.getElementById("root")!).render(

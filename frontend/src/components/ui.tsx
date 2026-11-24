@@ -118,13 +118,26 @@ export function TabBar({ tabs }: { tabs: { to: string; icon: string; label: stri
   );
 }
 
-export function useAsync<T>(fn: () => Promise<T>, deps: any[] = []) {
+export function useAsync<T>(fn: () => Promise<T>, deps: any[] = [], live = false) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   const ref = useRef(fn); ref.current = fn;
-  const run = async () => { setLoading(true); setError(null); try { setData(await ref.current()); } catch (e) { setError(e); } setLoading(false); };
-  useEffect(() => { run(); /* eslint-disable-next-line */ }, deps);
+  const version = useRef(0);
+  const run = async (quiet = false) => {
+    const id = ++version.current;
+    if (!quiet) setLoading(true);
+    try { const next = await ref.current(); if (id === version.current) {setData(next); setError(null);} }
+    catch (e) { if (id === version.current) setError(e); }
+    finally { if (id === version.current) setLoading(false); }
+  };
+  useEffect(() => {
+    run();
+    const refresh = () => { if (!document.hidden) run(true); };
+    const timer = live ? setInterval(refresh, 5000) : undefined;
+    if (live) window.addEventListener("focus",refresh);
+    return () => { ++version.current; clearInterval(timer); window.removeEventListener("focus",refresh); };
+  }, [...deps,live]);
   return { data, error, loading, reload: run, setData };
 }
 

@@ -3,8 +3,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .country_config import get_country
+from .db import utcnow
 from .models import Assignment, HirerProfile, Job, Offer, User, WorkerProfile
 from .modules import geo, reputation
+from .modules.jobs import booked_count
 
 
 def job_view(db: Session, job: Job, viewer: User, *, from_lat=None, from_lon=None) -> dict:
@@ -23,6 +25,8 @@ def job_view(db: Session, job: Job, viewer: User, *, from_lat=None, from_lon=Non
          "advance": job.advance, "deductions": job.deductions, "transport_mode": job.transport_mode,
          "transport_amount": job.transport_amount, "currency": cfg.currency.code, "rule_verified": job.rule_verified,
          "readback_verified": job.readback_verified, "hirer_reputation": reputation.hirer_reputation(db, job.hirer_id)}
+    v["booked"] = db.scalar(select(booked_count()).select_from(Job).where(Job.id == job.id))
+    v["booking_expired"] = job.start_at < utcnow() and job.status in ("open", "offers", "assigned")
     if exact:
         v["address_detail"] = job.address_detail
     if from_lat is not None and from_lon is not None:

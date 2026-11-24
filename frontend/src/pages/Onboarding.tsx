@@ -1,29 +1,8 @@
 import { useState } from "react";
 import { api, ApiError, setToken } from "../api";
 import { BigButton, ScreenHeader, SpeakerButton, Stepper } from "../components/ui";
-import { availableLocales, useI18n } from "../i18n";
+import { useI18n } from "../i18n";
 import { useSession } from "../session";
-
-export function FirstRun() {
-  const { t, lang, setLang } = useI18n();
-  const { setRole } = useSession();
-  const names: Record<string, string> = { ur: "اردو", en: "English" };
-  return (
-    <div className="min-h-screen flex flex-col">
-      <ScreenHeader title={t("ui.firstrun.title")} speakText={t("ui.firstrun.speak")} auto />
-      <div className="flex gap-3 p-4 justify-center" role="group" aria-label={t("ui.lang.pick")}>
-        {availableLocales.map((l) => (
-          <button key={l} onClick={() => setLang(l)} className={`min-h-[56px] px-6 rounded-2xl text-xl font-bold border-4 ${l === lang ? "bg-brand text-white border-brand" : "border-gray-500"}`}>{names[l] || l}</button>
-        ))}
-      </div>
-      <div className="flex-1 flex flex-col justify-center gap-6 p-4">
-        <BigButton tone="blue" icon="🏗️" onClick={() => setRole("hirer")}>{t("ui.role.hirer")}</BigButton>
-        <BigButton tone="green" icon="👷" onClick={() => setRole("worker")}>{t("ui.role.worker")}</BigButton>
-      </div>
-      <div className="p-4 flex justify-center"><SpeakerButton text={t("ui.firstrun.speak")} /></div>
-    </div>
-  );
-}
 
 export function Login() {
   const { t, lang } = useI18n();
@@ -35,33 +14,28 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   const wrap = async (fn: () => Promise<void>) => {
     setBusy(true); setErr("");
-    try { await fn(); } catch (e) { const a = e as ApiError; setErr(a.status === 0 ? t("ui.error.network") : a.status === 429 ? t("ui.error.rate_limited") : a.code === "invalid_phone" ? t("ui.login.bad_phone") : t("ui.login.bad_code")); }
+    try { await fn(); } catch (e) { const a = e as ApiError; setErr(a.status === 0 || a.status >= 500 ? t("ui.error.network") : a.status === 429 ? t("ui.error.rate_limited") : a.code === "invalid_phone" ? t("ui.login.bad_phone") : t("ui.login.bad_code")); }
     setBusy(false);
   };
-  return (
-    <div className="min-h-screen flex flex-col">
-      <ScreenHeader title={t("ui.login.phone")} speakText={t("ui.login.speak")} />
-      <div className="p-4 space-y-5">
-        <input inputMode="tel" dir="ltr" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="03XX XXXXXXX"
-          className="w-full text-3xl text-center rounded-2xl border-4 border-gray-600 min-h-[72px]" aria-label={t("ui.login.phone")} />
-        {!sent && <BigButton disabled={busy || phone.length < 7} onClick={() => wrap(async () => setSent(await api("/auth/request-otp", { method: "POST", body: { phone } })))}>{t("ui.login.send")}</BigButton>}
-        {sent && (
-          <>
-            <p className="text-xl font-bold">{t("ui.login.code")}</p>
-            {sent.dev_otp && <button className="underline text-lg" onClick={() => setCode(sent.dev_otp!)}>{t("ui.login.devotp", { code: sent.dev_otp })}</button>}
-            <input inputMode="numeric" dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} maxLength={6}
-              className="w-full text-4xl text-center tracking-widest rounded-2xl border-4 border-gray-600 min-h-[72px]" />
-            <BigButton disabled={busy || code.length < 6} onClick={() => wrap(async () => {
-              const r = await api<{ token: string }>("/auth/verify-otp", { method: "POST", body: { phone, code, role, locale: lang } });
-              setToken(r.token); await refresh();
-            })}>{t("ui.login.verify")}</BigButton>
-          </>
-        )}
-        {err && <p role="alert" className="text-xl font-bold text-red-800">⚠️ {err}</p>}
-        <button className="underline text-lg min-h-[56px]" onClick={() => setRole("")}>← {t("ui.back")}</button>
-      </div>
-    </div>
-  );
+  return <><button className="back-link" onClick={()=>setRole("")}>{t("ui.back")}</button>
+    <h1>{t(sent ? "ui.login.code" : "ui.login.phone")}</h1>
+    <p className="muted">{sent ? t("market.otpHint",{phone}) : t("market.phoneHint")}</p>
+    <form className="auth-form" onSubmit={e=>{
+      e.preventDefault();
+      if(busy) return;
+      wrap(async()=>{
+        if(!sent) {setSent(await api("/auth/request-otp",{method:"POST",body:{phone},retries:0}));return;}
+        const r=await api<{token:string}>("/auth/verify-otp",{method:"POST",body:{phone,code,role,locale:lang},retries:0});
+        setToken(r.token); await refresh();
+      });
+    }}>
+      {!sent ? <input required aria-label={t("ui.login.phone")} type="tel" dir="ltr" autoComplete="tel" value={phone} onChange={e=>setPhone(e.target.value)}/>
+       : <><input key="otp" autoFocus aria-label={t("ui.login.code")} required inputMode="numeric" dir="ltr" autoComplete="one-time-code" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,""))}/>
+       {sent.dev_otp && <button type="button" className="text-button" onClick={()=>setCode(sent.dev_otp!)}>{t("ui.login.devotp",{code:sent.dev_otp})}</button>}</>}
+      {err && <p className="error" role="alert">{err}</p>}
+      <button className="primary" disabled={busy || (sent ? code.length!==6 : phone.length<7)}>{t(sent?"ui.login.verify":"ui.login.send")}</button>
+      {sent && <button type="button" className="text-button" onClick={()=>{setSent(null);setCode("");setErr("");}}>{t("market.changeNumber")}</button>}
+    </form></>;
 }
 
 export function ProfileForm({ onSaved }: { onSaved: () => void }) {

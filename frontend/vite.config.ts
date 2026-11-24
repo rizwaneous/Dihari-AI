@@ -9,7 +9,7 @@ export default defineConfig({
     fs: { allow: [".."] },
     proxy: { "/api": { target: process.env.API_URL || "http://localhost:8000", rewrite: (p) => p.replace(/^\/api/, "") } },
   },
-  build: { target: "es2019", chunkSizeWarningLimit: 250 },
+  build: { rollupOptions: {output: {manualChunks: {leaflet: ["leaflet"]}}}, target: "es2019", chunkSizeWarningLimit: 250 },
   plugins: [
     react(),
     VitePWA({
@@ -31,6 +31,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        importScripts: ["/push-events.js"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/admin/],
         runtimeCaching: [

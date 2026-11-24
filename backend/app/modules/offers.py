@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..country_config import get_country
+from ..db import utcnow
 from ..models import Job, JobStatus as S, Offer, User
 from . import audit, jobs
 
@@ -13,11 +14,16 @@ class OfferError(Exception):
         self.code, self.detail = code, detail
 
 
-def make_offer(db: Session, job: Job, worker: User, rate: int | None = None) -> Offer:
+def make_offer(db: Session, job: Job, worker: User, rate: int | None = None, *, commit=True) -> Offer:
     """rate None → accept at the posted rate. Otherwise a counter that must be > job.daily_rate."""
     if worker.role != "worker":
         raise OfferError("not_worker")
-    if job.status not in (S.open.value, S.offers.value):
+    if job.hirer_id == worker.id:
+        raise OfferError("own_job")
+    taken = jobs.lock_for_booking(db, job)
+    if job.start_at < utcnow():
+        raise OfferError("job_expired")
+    if taken >= job.headcount or job.status not in (S.open.value, S.offers.value, S.assigned.value):
         raise OfferError("job_closed")
     if job.flagged:
         raise OfferError("job_flagged")
@@ -45,7 +51,12 @@ def make_offer(db: Session, job: Job, worker: User, rate: int | None = None) -> 
     if job.status == S.open.value:
         jobs.transition(db, job, S.offers, worker.id)
     audit.log(db, worker.id, "offer", offer.id, kind, data={"job": job.id, "rate": rate})
-    db.commit()
+    if commit:
+        from .notifications import notify
+        notify(db, job.hirer_id, "new_offer", job.id)
+        db.commit()
+    else:
+        db.flush()
     return offer
 
 
@@ -56,5 +67,10 @@ def withdraw(db: Session, offer: Offer, worker: User) -> Offer:
         raise OfferError("already_selected")
     offer.status = "withdrawn"
     audit.log(db, worker.id, "offer", offer.id, "withdrawn")
-    db.commit()
+    if commit:
+        from .notifications import notify
+        notify(db, job.hirer_id, "new_offer", job.id)
+        db.commit()
+    else:
+        db.flush()
     return offer

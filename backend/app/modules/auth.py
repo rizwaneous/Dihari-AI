@@ -33,9 +33,11 @@ def request_otp(db: Session, raw_phone: str, country: str | None = None) -> dict
     code = new_otp()
     db.add(OtpCode(phone=phone, code_hash=hash_code(f"{phone}:{code}"),
                    expires_at=utcnow() + timedelta(seconds=get_settings().otp_ttl_seconds)))
-    db.commit()
     sms = get_sms()
-    sms.send(phone, f"Dihari code: {code}")
+    if not sms.send(phone, f"Dihari code: {code}"):
+        db.rollback()
+        raise AuthError("sms_unavailable")
+    db.commit()
     out = {"phone": phone, "country": cfg.code}
     if get_settings().dev_mode and sms.name == "stub":
         out["dev_otp"] = code

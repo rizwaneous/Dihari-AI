@@ -6,3 +6,9 @@ dependencies = ["fastapi", "uvicorn[standard]", "sqlalchemy>=2", "pydantic>=2", 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[project.optional-dependencies]
+push = ["pywebpush>=2"]
+
+[tool.setuptools.packages.find]
+include = ["app*", "sim*", "adversarial*"]

@@ -1,0 +1,17 @@
+{
+  "country_code": "SA",
+  "description": "Development fixture for testing bookings in SAR. Replace with reviewed market rules before enabling this market outside development.",
+  "rules": [
+    {
+      "region": "*",
+      "version": "demo-1",
+      "effective_date": "2000-01-01",
+      "currency": "SAR",
+      "min_daily_wage": 100,
+      "max_hours_per_day": 8,
+      "max_payment_delay_days": 7,
+      "verified": false,
+      "placeholder": true
+    }
+  ]
+}

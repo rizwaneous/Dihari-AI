@@ -19,7 +19,7 @@ def country(code: str):
     except KeyError:
         raise HTTPException(404, "unknown country")
     d = c.model_dump(exclude={"wage_rules_file", "holidays"})
-    d["places"] = [{"name": p.name, "region": p.region} for p in c.places]
+    d["places"] = [{"name": p.name, "region": p.region, "lat": p.lat, "lon": p.lon} for p in c.places]
     return d
 
 

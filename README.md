@@ -1,8 +1,8 @@
 # Dihari (دیہاڑی)
 
-Voice-first Urdu job marketplace for daily-wage labour. Hirers (households, thekedars, businesses) post a job **by speaking**; nearby workers hear it read aloud, accept at the offered rate or counter **upward only**; the app keeps a shared record of what was promised and whether it was paid. Pakistan is market #1 — **every country-specific fact is configuration** (`config/`, `locales/`), not code.
+Map-first Urdu and English job marketplace for daily-wage labour. Hirers (households, thekedars, businesses) post a job **by speaking**; nearby workers hear it read aloud, accept at the offered rate or counter **upward only**; the app keeps a shared record of what was promised and whether it was paid. Pakistan is market #1 — **every country-specific fact is configuration** (`config/`, `locales/`), not code.
 
-> Status: runs fully offline on mocks. **No real ASR / TTS / LLM / SMS / push provider is connected yet** — see [docs/PROVIDERS.md](docs/PROVIDERS.md).
+> The home screen requests location and supports manual pins and area search. Workers can book a remaining spot at the posted rate or send a higher counter. Signed-in screens refresh while open. Street tiles and landmark lookup use external services. Demo OTPs appear on screen. See [provider setup](docs/PROVIDERS.md) for optional SMS and background alerts.
 
 ## Quick start
 

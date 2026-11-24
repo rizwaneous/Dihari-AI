@@ -1,0 +1,194 @@
+{
+  "code": "SA",
+  "name": {
+    "en": "Saudi Arabia",
+    "ur": "سعودی عرب"
+  },
+  "timezone": "Asia/Riyadh",
+  "currency": {
+    "code": "SAR",
+    "symbol": "SAR",
+    "minor_units": 2
+  },
+  "phone": {
+    "dial_code": "+966",
+    "national_regex": "^5\\d{8}$",
+    "strip_leading_zero": true,
+    "example": "+966 5X XXX XXXX"
+  },
+  "languages": [
+    "en",
+    "ur"
+  ],
+  "default_language": "en",
+  "wage_rules_file": "wage_rules/sa.json",
+  "default_radius_km": 10,
+  "max_radius_km": 40,
+  "rate_step": 5,
+  "demo_only": true,
+  "regions": [
+    {
+      "code": "JED",
+      "name": {
+        "en": "Jeddah",
+        "ur": "جدہ"
+      },
+      "aliases": [
+        "jeddah",
+        "جدہ"
+      ]
+    }
+  ],
+  "default_region": "JED",
+  "places": [
+    {
+      "name": "Al-Balad, Jeddah",
+      "region": "JED",
+      "lat": 21.4858,
+      "lon": 39.1875,
+      "approx": true
+    },
+    {
+      "name": "Al-Rawdah, Jeddah",
+      "region": "JED",
+      "lat": 21.559,
+      "lon": 39.155,
+      "approx": true
+    },
+    {
+      "name": "Al-Salamah, Jeddah",
+      "region": "JED",
+      "lat": 21.596,
+      "lon": 39.151,
+      "approx": true
+    }
+  ],
+  "trades": [
+    {
+      "code": "tile",
+      "icon": "🧱",
+      "names": {
+        "en": "Tile work",
+        "ur": "ٹائل کا کام"
+      },
+      "aliases": [
+        "tile",
+        "tiles",
+        "tiling",
+        "ٹائل",
+        "ٹائلز"
+      ]
+    },
+    {
+      "code": "mason",
+      "icon": "🏗️",
+      "names": {
+        "en": "Mason",
+        "ur": "راج مستری"
+      },
+      "aliases": [
+        "mason",
+        "mistri",
+        "mistry",
+        "مستری",
+        "راج",
+        "چنائی"
+      ]
+    },
+    {
+      "code": "paint",
+      "icon": "🎨",
+      "names": {
+        "en": "Painting",
+        "ur": "رنگ"
+      },
+      "aliases": [
+        "paint",
+        "painting",
+        "painter",
+        "رنگ",
+        "پینٹ",
+        "رنگ و روغن"
+      ]
+    },
+    {
+      "code": "plumber",
+      "icon": "🔧",
+      "names": {
+        "en": "Plumber",
+        "ur": "پلمبر"
+      },
+      "aliases": [
+        "plumber",
+        "plumbing",
+        "پلمبر",
+        "نلکا"
+      ]
+    },
+    {
+      "code": "electrician",
+      "icon": "💡",
+      "names": {
+        "en": "Electrician",
+        "ur": "الیکٹریشن"
+      },
+      "aliases": [
+        "electrician",
+        "electric",
+        "wiring",
+        "الیکٹریشن",
+        "بجلی"
+      ]
+    },
+    {
+      "code": "labour",
+      "generic": true,
+      "icon": "⛏️",
+      "names": {
+        "en": "General labour",
+        "ur": "مزدوری"
+      },
+      "aliases": [
+        "labour",
+        "labor",
+        "labourer",
+        "mazdoor",
+        "majdoor",
+        "helper",
+        "مزدوری",
+        "مزدور",
+        "بیلدار"
+      ]
+    },
+    {
+      "code": "carpenter",
+      "icon": "🪚",
+      "names": {
+        "en": "Carpenter",
+        "ur": "بڑھئی"
+      },
+      "aliases": [
+        "carpenter",
+        "carpentry",
+        "wood",
+        "بڑھئی",
+        "لکڑی"
+      ]
+    },
+    {
+      "code": "shifting",
+      "icon": "📦",
+      "names": {
+        "en": "Loading / shifting",
+        "ur": "سامان اٹھانا"
+      },
+      "aliases": [
+        "shifting",
+        "loading",
+        "moving",
+        "سامان",
+        "شفٹنگ"
+      ]
+    }
+  ]
+}

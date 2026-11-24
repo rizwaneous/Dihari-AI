@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..country_config import get_country
-from ..db import get_db
+from ..db import get_db, utcnow
 from ..deps import current_user, need_role
 from ..models import Assignment, Job, JobStatus as S, Offer, User, WorkerProfile
 from ..modules import agreements, geo, jobs, offers, payments, wage_floor
@@ -20,8 +20,8 @@ class JobIn(BaseModel):
     headcount: int = Field(ge=1, le=200)
     location_text: str
     address_detail: str | None = None
-    lat: float | None = None
-    lon: float | None = None
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lon: float | None = Field(default=None, ge=-180, le=180)
     start_at: datetime
     days: int = Field(default=1, ge=1, le=60)
     daily_rate: int = Field(gt=0)
@@ -96,7 +96,7 @@ def mine(user: User = Depends(need_role("hirer")), db: Session = Depends(get_db)
 
 
 @router.get("/nearby")
-def nearby(lat: float | None = None, lon: float | None = None, radius_km: float | None = None,
+def nearby(lat: float | None = None, lon: float | None = None, radius_km: float | None = None, all_trades: bool = False,
            user: User = Depends(need_role("worker")), db: Session = Depends(get_db)):
     wp = db.get(WorkerProfile, user.id)
     cfg = get_country(user.country_code)
@@ -105,14 +105,14 @@ def nearby(lat: float | None = None, lon: float | None = None, radius_km: float 
     if lat is None or lon is None:
         raise HTTPException(400, {"code": "no_location"})
     radius = min(radius_km or (wp.radius_km if wp else cfg.default_radius_km), cfg.max_radius_km)
-    res = geo.nearby_jobs(db, lat, lon, radius, trades=(wp.trades if wp and wp.trades else None), country=user.country_code)
+    res = geo.nearby_jobs(db, lat, lon, radius, trades=(wp.trades if wp and wp.trades and not all_trades else None), country=user.country_code)
     return [job_view(db, j, user, from_lat=lat, from_lon=lon) for j, _ in res]
 
 
 @router.get("/{job_id}")
 def get_job(job_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
     j = db.get(Job, job_id)
-    if not j:
+    if not j or j.country_code != user.country_code:
         raise HTTPException(404)
     return job_view(db, j, user)
 
@@ -144,13 +144,35 @@ def list_offers(job_id: str, sort: str = "best", user: User = Depends(need_role(
 @router.post("/{job_id}/offers", status_code=201)
 def post_offer(job_id: str, body: OfferIn, user: User = Depends(need_role("worker")), db: Session = Depends(get_db)):
     j = db.get(Job, job_id)
-    if not j:
+    if not j or j.country_code != user.country_code:
         raise HTTPException(404)
     try:
         o = offers.make_offer(db, j, user, body.rate)
     except offers.OfferError as e:
         raise _http(e, 422 if e.code.startswith("counter") else 409)
     return {"id": o.id, "rate": o.rate, "kind": o.kind, "status": o.status}
+
+
+@router.post("/{job_id}/book")
+def book(job_id: str, worker: User = Depends(need_role("worker")), db: Session = Depends(get_db)):
+    job = db.get(Job, job_id)
+    if not job or job.country_code != worker.country_code:
+        raise HTTPException(404)
+    jobs.lock_for_booking(db, job)
+    existing = db.scalar(select(Assignment).where(Assignment.job_id == job.id,
+                                                  Assignment.worker_id == worker.id))
+    if existing and existing.status in ("assigned", "confirmed"):
+        return {"assignment_id": existing.id, "status": existing.status, "agreement_id": existing.agreement_id}
+    if job.start_at < utcnow():
+        raise HTTPException(409, "job_expired")
+    try:
+        offer = offers.make_offer(db, job, worker, commit=False)
+        owner = db.get(User, job.hirer_id)
+        assignment, = agreements.select_workers(db, job, owner, [offer.id], direct=True)
+    except (offers.OfferError, agreements.AgreementError) as e:
+        db.rollback()
+        raise _http(e, 409)
+    return {"assignment_id": assignment.id, "status": assignment.status, "agreement_id": assignment.agreement_id}
 
 
 @router.delete("/offers/{offer_id}")
@@ -202,9 +224,15 @@ def cancel(job_id: str, user: User = Depends(need_role("hirer")), db: Session = 
     j = db.get(Job, job_id)
     if not j or j.hirer_id != user.id:
         raise HTTPException(404)
+    jobs.lock_for_booking(db, j)
     try:
         jobs.transition(db, j, S.cancelled, user.id)
     except jobs.IllegalTransition as e:
         raise _http(e, 409)
+    from ..modules.notifications import notify
+    for assignment in db.scalars(select(Assignment).where(Assignment.job_id == j.id,
+                                                           Assignment.status.in_(["assigned", "confirmed"]))):
+        assignment.status = "cancelled"
+        notify(db, assignment.worker_id, "job_cancelled", j.id)
     db.commit()
     return {"status": j.status}

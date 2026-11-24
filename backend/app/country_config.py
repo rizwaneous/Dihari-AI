@@ -60,6 +60,7 @@ class CountryConfig(BaseModel):
     phone: PhoneCfg
     languages: list[str]
     default_language: str
+    demo_only: bool = False
     wage_rules_file: str
     default_radius_km: float = 10
     max_radius_km: float = 40
@@ -134,12 +135,13 @@ class CountryConfig(BaseModel):
 
 
 class CountryRegistry:
-    def __init__(self, directory: str | Path):
+    def __init__(self, directory: str | Path, include_demo: bool = False):
         self.dir = Path(directory)
         self._cache: dict[str, CountryConfig] = {}
         for f in sorted((self.dir / "countries").glob("*.json")):
             cfg = CountryConfig(**json.loads(f.read_text(encoding="utf-8")))
-            self._cache[cfg.code] = cfg
+            if include_demo or not cfg.demo_only:
+                self._cache[cfg.code] = cfg
 
     def codes(self) -> list[str]:
         return list(self._cache)
@@ -161,12 +163,12 @@ class CountryRegistry:
 
 
 @lru_cache
-def _registry(path: str) -> CountryRegistry:
-    return CountryRegistry(path)
+def _registry(path: str, include_demo: bool) -> CountryRegistry:
+    return CountryRegistry(path, include_demo)
 
 
 def registry(path: str | None = None) -> CountryRegistry:
-    return _registry(path or get_settings().config_dir)
+    return _registry(path or get_settings().config_dir, get_settings().dev_mode)
 
 
 def get_country(code: str | None = None) -> CountryConfig:

@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     # Notifications
     notify_providers: str = "log"          # order: first that works wins; sms fallback is last
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+    vapid_subject: str = ""
     vapid_public_key: str = ""
     vapid_private_key: str = ""
 

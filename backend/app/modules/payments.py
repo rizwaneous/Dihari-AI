@@ -30,6 +30,7 @@ def _local_date(job: Job, now: datetime) -> date:
 def start_job(db: Session, job: Job, actor: User) -> Job:
     if job.hirer_id != actor.id:
         raise PaymentError("forbidden")
+    jobs.lock_for_booking(db, job)
     confirmed = db.scalars(select(Assignment).where(Assignment.job_id == job.id, Assignment.status == "confirmed")).all()
     if not confirmed:
         raise PaymentError("no_confirmed_workers")
