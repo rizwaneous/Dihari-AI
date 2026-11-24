@@ -71,8 +71,6 @@ def verify_otp(db: Session, raw_phone: str, code: str, role: str | None = None, 
     else:
         if user.suspended:
             raise AuthError("suspended")
-        user.phone_verified = True
-        if role and user.role != role:
-            user.role = role
+        user.phone_verified = True   # an existing account keeps its role; one phone number = one role
     db.commit()
     return {"token": make_token(user.id), "user_id": user.id, "role": user.role, "is_new": created}

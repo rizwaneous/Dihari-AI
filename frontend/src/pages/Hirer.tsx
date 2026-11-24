@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { BigButton, ErrorRetry, pct, ScreenHeader, Skeleton, SpeakerButton, useAsync } from "../components/ui";
 import { useI18n } from "../i18n";
+import { TierBadge } from "../components/Tier";
 import { useSession } from "../session";
 
 export function MyJobs() {
@@ -69,7 +70,7 @@ export function JobDetail() {
             {offers.data && !offers.data.length && <p className="text-xl">{t("ui.offers.none")}</p>}
             {offers.data?.map((o) => (
               <div key={o.offer_id} className="rounded-2xl border-4 border-gray-600 p-4 space-y-2">
-                <div className="flex justify-between text-2xl font-bold"><span>👷 {o.first_name}</span><span>{sym} {o.rate}</span></div>
+                <div className="flex justify-between text-2xl font-bold"><span className="flex items-center gap-2">👷 {o.first_name} <TierBadge tier={o.tier} /></span><span>{sym} {o.rate}</span></div>
                 {o.kind === "counter" && <p className="text-lg text-yellow-900 font-bold">↑ {t("ui.offers.counter", { rate: o.rate })}</p>}
                 <p className="text-lg">{o.distance_km != null && t("ui.job.km", { km: o.distance_km })} · {pct(o.completion_rate) ? t("ui.offers.completion", { pct: pct(o.completion_rate)! }) : t("ui.offers.new_worker")}{o.avg_rating ? ` · ⭐ ${o.avg_rating.toFixed(1)}` : ""}</p>
                 <BigButton tone={o.status === "selected" ? "gray" : "green"} disabled={o.status === "selected"} icon="👆" onClick={() => act(`/jobs/${id}/assign`, { offer_ids: [o.offer_id] })}>{o.status === "selected" ? t("ui.offers.picked") : t("ui.offers.pick")}</BigButton>
@@ -80,7 +81,7 @@ export function JobDetail() {
           <section className="space-y-3">
             {asg.data.map((a) => (
               <div key={a.assignment_id} className="rounded-2xl border-4 border-brand p-4 space-y-2">
-                <p className="text-xl font-bold">👷 {a.first_name} · <span dir="ltr">{a.phone}</span> · {t(`ui.work.status.${a.status}`)}</p>
+                <p className="text-xl font-bold">👷 {a.first_name} <TierBadge tier={a.tier} /> · <span dir="ltr">{a.phone}</span> · {t(`ui.work.status.${a.status}`)}</p>
                 {j.status === "completed" || j.status === "disputed" ? (
                   <>{a.status === "completed" && !a.my_payment_claim && (<><p className="text-lg font-bold">{t("ui.hirer.paid_q")}</p>
                     <div className="grid grid-cols-2 gap-3"><BigButton tone="green" onClick={() => act(`/assignments/${a.assignment_id}/hirer-payment`, { status: "paid" })}>{t("ui.hirer.i_paid")}</BigButton>

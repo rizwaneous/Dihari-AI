@@ -142,3 +142,60 @@ html[lang=ur] .market h1,html[lang=ur] .eyebrow { letter-spacing:normal; line-he
 #root nav.fixed { z-index:600; border-top:1px solid #bacabd; }
 #root nav.fixed a { min-height:54px; font-size:.83rem; }
 #root nav.fixed a span { font-size:1.05rem; }
+
+/* ---------- Prototype additions: demo accounts, tiers, Kaam Card, fair rate ---------- */
+.market-head { background:linear-gradient(100deg,#0f2a23,#164b3e 70%,#1d5c4a); }
+.demo-box { margin:18px 0 4px; padding:16px; border-radius:18px; background:linear-gradient(135deg,#fff8e6,#f3f8ea); border:1px dashed #d4b25c; display:grid; gap:8px; }
+.demo-box .eyebrow { color:#8a6412; } .demo-box .eyebrow i { background:#e0a422; }
+.demo-cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.demo-card { position:relative; display:grid; justify-items:start; gap:2px; padding:14px; border-radius:16px; background:white; border:1px solid #e6dcc2; text-align:start; box-shadow:0 2px 8px #3a2a0010; }
+.demo-card.worker { background:#eef6e6; border-color:#bcd5a6; }
+.demo-card strong { font-size:1.02em; } .demo-card small { color:var(--muted); }
+.demo-avatar { font-size:30px; line-height:1; margin-bottom:6px; }
+.demo-go { position:absolute; inset-inline-end:12px; top:14px; color:#3f6856; }
+.demo-card:hover { transform:translateY(-1px); box-shadow:0 6px 16px #3a2a0018; }
+.demo-switch { display:inline-flex; align-items:center; gap:6px; min-height:38px; padding:4px 12px; border-radius:999px; background:#ffd76a; color:#3b2c00; font-weight:700; font-size:.85em; border:0; box-shadow:0 1px 0 #00000030; }
+.demo-switch:hover { background:#ffe28f !important; }
+header .demo-switch { font-size:.9rem; }
+.trade-icon { display:inline-grid; place-items:center; width:30px; height:30px; margin-inline-end:8px; border-radius:9px; background:#eef3ea; font-size:17px; vertical-align:middle; }
+.pays-badge { display:inline-flex; gap:5px; align-items:center; padding:3px 10px; border-radius:999px; background:#e3f4de; color:#1f5a2d; font-weight:700; font-size:.85em; margin-bottom:6px; }
+.tier-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px 2px 6px; border-radius:999px; font-size:.8rem; font-weight:700; color:white; background:var(--tier,#8a9a91); white-space:nowrap; vertical-align:middle; }
+.tier-badge.lg { font-size:1rem; padding:5px 14px 5px 10px; }
+.fair-rate { display:flex; align-items:center; gap:10px; padding:11px 13px; border-radius:13px; background:#f1f6ff; border:1px solid #c9d8f2; }
+.fair-rate>span { font-size:22px; } .fair-rate>div { flex:1; display:grid; } .fair-rate small { color:#45577a; } .fair-rate .warn { color:#9a4a00; font-weight:650; }
+.chip-button { padding:7px 12px; border-radius:999px; background:#2c5fb3; color:white; font-weight:700; font-size:.85em; white-space:nowrap; }
+.ai-note { color:#6b4fb3 !important; font-weight:600; }
+
+.kaam-page { max-width:640px; margin:0 auto; padding:0 16px 110px; color:#182923; font-family:Inter,"Segoe UI",system-ui,sans-serif; }
+html[lang=ur] .kaam-page { font-family:"Noto Naskh Arabic","Segoe UI",system-ui,sans-serif; }
+.kaam-page .kaam-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 -16px 16px; padding:18px 20px; color:white; }
+.kaam-page .kaam-head small { color:#cfe3b9 !important; }
+.kaam-page .kaam-head h1 { color:white; }
+.kaam-head small { font-weight:650; } .kaam-head h1 { font-size:1.6rem; font-weight:750; margin:0; }
+.kaam-card { position:relative; overflow:hidden; padding:20px; border-radius:24px; color:white;
+  background:radial-gradient(circle at 100% 0,color-mix(in srgb,var(--tier) 70%,white) 0,transparent 55%),linear-gradient(140deg,#123a30,#1a5545 60%,color-mix(in srgb,var(--tier) 60%,#123a30)); box-shadow:0 14px 34px #12302730; }
+.kaam-card-top { display:flex; align-items:center; gap:14px; }
+.kaam-card-top>div { flex:1; display:grid; } .kaam-card-top small { opacity:.8; } .kaam-card-top strong { font-size:1.7rem; line-height:1.2; }
+.kaam-icon { display:grid; place-items:center; width:62px; height:62px; border-radius:18px; background:#ffffff22; font-size:36px; }
+.kaam-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:18px 0 6px; }
+.kaam-stats div { display:grid; justify-items:center; padding:10px 4px; border-radius:14px; background:#ffffff16; }
+.kaam-stats b { font-size:1.35rem; } .kaam-stats small { opacity:.8; font-size:.8rem; }
+.tier-progress { margin-top:12px; } .tier-steps { display:flex; justify-content:space-between; font-size:22px; }
+.tier-steps span { opacity:.35; filter:grayscale(1); } .tier-steps span.on { opacity:1; filter:none; }
+.tier-progress .bar { height:10px; border-radius:10px; background:#ffffff2a; margin:8px 0; overflow:hidden; }
+.tier-progress .bar i { display:block; height:100%; border-radius:10px; background:linear-gradient(90deg,#d7efac,#ffd76a); }
+.tier-progress ul { margin:4px 0 0; padding-inline-start:18px; font-size:.92rem; } .tier-top { font-weight:700; margin-top:6px; }
+.kaam-perk { margin-top:10px !important; font-size:.82rem; opacity:.8; }
+.earn-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:16px 0; }
+.earn { display:grid; gap:2px; padding:14px; border-radius:16px; background:white; border:1px solid #d9e2dd; }
+.earn.main { grid-column:1/-1; background:#e9f2de; border-color:#b4c8a3; } .earn.main b { font-size:2rem; }
+.earn b { font-size:1.25rem; } .earn small { color:#53685f; } .earn.owed { background:#fff1ee; border-color:#f1b9ab; }
+.history h2 { font-size:1.15rem; font-weight:700; margin:6px 0 10px; }
+.history-row { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:12px; border-radius:14px; background:white; border:1px solid #e1e8e3; margin-bottom:8px; }
+.history-row small { display:block; color:#53685f; font-size:.82rem; } .history-row .proof { color:#2f7a4a; }
+.history-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:12px; background:#eef3ea; font-size:22px; }
+.history-end { display:grid; justify-items:end; } .history-end em { font-style:normal; color:#c58a12; font-size:.85rem; } .history-end .unpaid { color:#b3261e; font-weight:700; }
+.kaam-share { margin:14px 0; padding:12px 14px; border-radius:14px; background:#f4f1e8; color:#5b5236; font-size:.9rem; }
+.kaam-actions { display:grid; gap:10px; }
+.kaam-actions .secondary { justify-content:center; min-height:52px; border-radius:14px; border:1px solid #b8c8bf; background:white; font-weight:650; display:flex; align-items:center; gap:8px; }
+@media(max-width:420px) { .demo-cards { grid-template-columns:1fr; } }

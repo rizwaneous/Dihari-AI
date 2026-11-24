@@ -45,6 +45,12 @@ def my_work(user: User = Depends(need_role("worker")), db: Session = Depends(get
     return out
 
 
+@router.get("/my/stats")
+def my_stats(user: User = Depends(need_role("worker")), db: Session = Depends(get_db)):
+    """Earnings, tier progress and the Kaam Card (verified work history)."""
+    return reputation.worker_stats(db, user.id)
+
+
 @router.get("/agreements/{agreement_id}")
 def get_agreement(agreement_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
     ag = db.get(Agreement, agreement_id)

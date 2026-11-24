@@ -13,7 +13,7 @@ describe("locales", () => {
     const src = path.resolve(__dirname, "..");
     const files = [...readdirSync(src), ...readdirSync(path.join(src, "pages")).map((f) => `pages/${f}`), ...readdirSync(path.join(src, "components")).map((f) => `components/${f}`)].filter((f) => f.endsWith(".tsx"));
     const keys = new Set<string>();
-    for (const f of files) for (const m of readFileSync(path.join(src, f), "utf-8").matchAll(/\bt\("([a-z_.]+)"/g)) keys.add(m[1]);
+    for (const f of files) for (const m of readFileSync(path.join(src, f), "utf-8").matchAll(/\bt\("([A-Za-z_.]+)"/g)) if (!m[1].endsWith(".")) keys.add(m[1]);
     const ur = load("ur");
     const missing = [...keys].filter((k) => !(k in ur));
     expect(missing).toEqual([]);

@@ -35,6 +35,8 @@ def seed(db, country: str = None, n_workers: int = 30, rng_seed: int = 7) -> dic
     cfg = get_country(country)
     rng = random.Random(rng_seed)
     if db.scalars(select(User)).first():
+        from app.modules import demo
+        demo.ensure(db)   # older demo databases also get the demo history
         return {"skipped": True}
     tz = ZoneInfo(cfg.timezone)
     places = cfg.places
@@ -79,6 +81,8 @@ def seed(db, country: str = None, n_workers: int = 30, rng_seed: int = 7) -> dic
     token = os.environ.get("DEMO_REVIEWER_TOKEN", "demo-reviewer-token")
     db.add(Reviewer(name="Demo Reviewer", token_hash=hashlib.sha256(token.encode()).hexdigest()))
     db.commit()
+    from app.modules import demo
+    demo.ensure(db)   # demo labourer gets a work history so the tier + Kaam Card have something to show
     return {"workers": len(workers), "hirers": len(hirers), "jobs": len(made), "demo_hirer_phone": "03" + f"{1_000_000:09d}",
             "demo_worker_phone": "03" + f"{2_000_000:09d}", "reviewer_token": token}
 

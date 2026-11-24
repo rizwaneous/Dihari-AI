@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     llm_verify_providers: str = "mock-b"
     mock_asr_fixed_text: str = ""
 
+    # Google Gemini (one key → extraction, speech-to-text, text-to-speech). Comma lists = fallback order.
+    gemini_api_key: str = ""
+    gemini_text_models: str = "gemini-flash-lite-latest,gemini-3.5-flash,gemini-flash-latest"
+    gemini_asr_models: str = "gemini-flash-lite-latest,gemini-3.5-flash"
+    gemini_tts_models: str = "gemini-3.8-flash-tts,gemini-2.5-flash-preview-tts"
+    gemini_tts_voice: str = "Kore"
+    gemini_thinking_level: str = "low"
+    gemini_timeout_seconds: float = 20
+
     # Notifications
     notify_providers: str = "log"          # order: first that works wins; sms fallback is last
     twilio_account_sid: str = ""
@@ -47,6 +56,10 @@ class Settings(BaseSettings):
     # Abuse controls
     rate_limit_enabled: bool = True
     max_jobs_per_hirer_per_day: int = 10
+    max_posts_per_hirer_per_hour: int = 5
+    demo_logins: bool = True
+    demo_hirer_phone: str = "03001000000"
+    demo_worker_phone: str = "03002000000"   # one-tap demo accounts; only ever active while DEV_MODE is true
     max_open_jobs_per_hirer: int = 5
     reports_to_flag_job: int = 3
     geo_fuzz_max_m: int = 500

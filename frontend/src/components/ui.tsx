@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { ApiError } from "../api";
 import { useI18n } from "../i18n";
 import { canListen, listen, speak, stopSpeaking, type Listener } from "../voice";
+import { DemoSwitch } from "./Demo";
 
 type Tone = "green" | "red" | "gray" | "blue";
 const tones: Record<Tone, string> = {
@@ -39,7 +40,7 @@ export function ScreenHeader({ title, speakText, auto }: { title: string; speakT
   return (
     <header className="flex items-center justify-between gap-3 p-4 bg-brand text-white sticky top-0 z-10">
       <h1 className="text-2xl font-bold">{title}</h1>
-      <SpeakerButton text={speakText || title} auto={auto} />
+      <div className="flex items-center gap-2"><DemoSwitch /><SpeakerButton text={speakText || title} auto={auto} /></div>
     </header>
   );
 }

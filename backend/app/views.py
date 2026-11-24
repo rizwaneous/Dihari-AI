@@ -63,7 +63,7 @@ def rank_offers(db: Session, job: Job, sort: str = "best") -> list[dict]:
         dist = 1 - c.get("distance_km", dmax) / dmax
         rating = (c["avg_rating"] or 3) / 5
         rel = c["completion_rate"] if c["completion_rate"] is not None else 0.7
-        c["score"] = round(0.25 * dist + 0.25 * price + 0.2 * rating + 0.3 * rel, 4)
+        c["score"] = round(0.25 * dist + 0.25 * price + 0.2 * rating + 0.3 * rel + c["tier"]["boost"], 4)
     key = {"best": lambda c: -c["score"], "distance": lambda c: c.get("distance_km", 1e9),
            "price": lambda c: c["rate"], "rating": lambda c: -(c["avg_rating"] or 0),
            "reliability": lambda c: -(c["completion_rate"] or 0)}[sort]

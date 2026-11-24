@@ -15,6 +15,11 @@ from ..views import job_view, rank_offers
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
+class DeductionIn(BaseModel):
+    label: str = Field(min_length=1, max_length=60)
+    amount: int | None = Field(default=None, ge=0)
+
+
 class JobIn(BaseModel):
     task: str
     headcount: int = Field(ge=1, le=200)
@@ -28,9 +33,9 @@ class JobIn(BaseModel):
     hours_per_day: float = Field(gt=0, le=24)
     payment_day: date | None = None
     advance: int = Field(default=0, ge=0)
-    deductions: list[dict] = []
-    transport_mode: str = "none"
-    transport_amount: int | None = None
+    deductions: list[DeductionIn] = []
+    transport_mode: str = Field(default="none", pattern="^(none|provided|allowance)$")
+    transport_amount: int | None = Field(default=None, ge=0)
     transcript: str | None = None
     readback_verified: bool = False
 
@@ -109,6 +114,31 @@ def nearby(lat: float | None = None, lon: float | None = None, radius_km: float 
     return [job_view(db, j, user, from_lat=lat, from_lon=lon) for j, _ in res]
 
 
+@router.get("/fair-rate")
+def fair_rate(task: str, location_text: str | None = None, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """What jobs like this usually pay here (median of recent posts) next to the legal floor. Helps hirers offer fairly
+    and lets workers judge an offer. Falls back to the whole country when the area has too few posts."""
+    from statistics import median
+    from datetime import timedelta
+    cfg = get_country(user.country_code)
+    region = cfg.resolve_region(location_text) if location_text else None
+    since = utcnow() - timedelta(days=60)
+    q = select(Job.daily_rate).where(Job.country_code == cfg.code, Job.task == task, Job.created_at >= since,
+                                     Job.status != S.cancelled.value)
+    rates = list(db.scalars(q.where(Job.region == region))) if region else []
+    scope = "area"
+    if len(rates) < 3:
+        rates, scope = list(db.scalars(q)), "country"
+    chk = wage_floor.check(country=cfg.code, region=region or "*", daily_rate=None, hours_per_day=None, payment_day=None,
+                           start_date=None, on=date.today())
+    floor = chk.rule.min_daily_wage if chk.rule else None
+    step = cfg.rate_step or 50
+    med = int(round(median(rates) / step) * step) if rates else None
+    return {"task": task, "median": med, "low": min(rates) if rates else None, "high": max(rates) if rates else None,
+            "count": len(rates), "scope": scope, "floor": floor, "currency": cfg.currency.code,
+            "suggested": max(x for x in (med, floor) if x is not None) if (med or floor) else None}
+
+
 @router.get("/{job_id}")
 def get_job(job_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
     j = db.get(Job, job_id)
@@ -127,7 +157,8 @@ def list_assignments(job_id: str, user: User = Depends(need_role("hirer")), db: 
     for a in db.scalars(select(Assignment).where(Assignment.job_id == job_id)):
         w = db.get(User, a.worker_id)
         out.append({"assignment_id": a.id, "agreement_id": a.agreement_id, "status": a.status, "first_name": reputation.first_name(w),
-                    "phone": w.phone, "my_payment_claim": a.hirer_payment_claim, "rating": a.rating})
+                    "phone": w.phone, "my_payment_claim": a.hirer_payment_claim, "rating": a.rating,
+                    "tier": reputation.worker_tier(db, w.id)})
     return out
 
 

@@ -28,6 +28,11 @@ def _optional_routers():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    s = get_settings()
+    if not s.dev_mode and s.secret_key in ("dev-secret-change-me", "change-me-in-production"):
+        raise RuntimeError("Set a private SECRET_KEY before running with DEV_MODE=false")
+    if s.dev_mode:
+        log.warning("DEV_MODE is on: login codes are shown on screen and demo logins are enabled. Never use in production.")
     init_db()
     from .ai import chain as ai_chain, service as ai_service
     from .db import SessionLocal

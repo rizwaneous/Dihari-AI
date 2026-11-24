@@ -12,6 +12,7 @@ import { SpeakerButton } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { ReportLink } from "./Worker";
 import { Login } from "./Onboarding";
+import { DemoEntry, DemoSwitch } from "../components/Demo";
 
 const preview: Point = {lat:33.6575, lon:72.959, name:"G-13"};
 const noPlaces: Point[] = [];
@@ -50,6 +51,9 @@ export function MapHome({ location }: { location: WorkLocation }) {
   const [contactRetry,setContactRetry] = useState(0);
   const [revision,setRevision] = useState(0);
   const sheet = useRef<HTMLDivElement>(null);
+  const [myTier,setMyTier] = useState<{icon:string}|null>(null);
+  useEffect(() => { if (!worker || !me) return; let live = true;
+    api<{tier:{icon:string}}>("/reputation/"+me.id).then(r=>{if(live)setMyTier(r.tier);}).catch(()=>{}); return () => {live=false;}; }, [worker, me?.id]);
   const radius = profile?.radius_km || country?.default_radius_km || 10;
   const query = worker ? (located ? "/jobs/nearby?all_trades=true&lat="+point.lat+"&lon="+point.lon : "") : "/jobs/mine";
   const job = receipt?.job || rows.find(j => j.id===selected);
@@ -117,8 +121,8 @@ export function MapHome({ location }: { location: WorkLocation }) {
   const back = () => {select(""); setExpanded(false);};
   return <main className={"market"+(!me?" guest-market":"")+(expanded?" expanded":"")}>
     <header className="market-head"><div className="wordmark" dir="ltr"><span className="brand-mark" aria-hidden="true">d</span>Dihari</div>
-      <div className="head-actions">{me && <Link to={worker?"/work":"/jobs-mine"}><Icon name="work"/>{t(worker?"ui.tab.mywork":"ui.tab.myjobs")}</Link>}
-      {worker && <Link aria-label={t("ui.tab.me")} to="/me"><Icon name="user"/></Link>}
+      <div className="head-actions"><DemoSwitch/>{me && <Link to={worker?"/work":"/jobs-mine"}><Icon name="work"/>{t(worker?"ui.tab.mywork":"ui.tab.myjobs")}</Link>}
+      {worker && <Link aria-label={t("ui.tab.me")} to="/me">{myTier ? <span aria-hidden="true">{myTier.icon}</span> : <Icon name="user"/>}</Link>}
       <button onClick={()=>setLang(lang==="ur"?"en":"ur")}>{lang==="ur"?"English":"اردو"}</button>
       {me && <button onClick={logout}>{t("ui.me.logout")}</button>}</div></header>
     <div className="market-layout">
@@ -129,7 +133,7 @@ export function MapHome({ location }: { location: WorkLocation }) {
         <div className="sheet-scroll" ref={sheet}>
         {!me ? <section key={role || "welcome"} className="sheet-enter entry">
           <span className="eyebrow"><i/>{t("market.exchange")}</span>
-          {role ? <Login/> : <><h1>{t("market.welcome")}</h1><p className="muted">{t("market.intro")}</p>
+          {role ? <Login/> : <><h1>{t("market.welcome")}</h1><p className="muted">{t("market.intro")}</p><DemoEntry/>
           <div className="role-list">{(["worker","hirer"] as const).map(r=>
             <button key={r} onClick={()=>setRole(r)}><span className="role-icon"><Icon name={r==="worker"?"work":"hire"} size={24}/></span>
             <span><strong>{t("market."+r)}</strong><small>{t("market."+r+"Hint")}</small></span><Icon name="arrow"/></button>)}</div></>}
@@ -148,7 +152,7 @@ export function MapHome({ location }: { location: WorkLocation }) {
           job ? <section key={job.id} className="sheet-enter details">
             <button className="back-link" onClick={back}><Icon name="back"/>{t(worker?"ui.jobs.title":"ui.tab.myjobs")}</button>
             <span className="eyebrow"><i/>{t(receipt?"market.confirmed":worker?"market.jobDetails":"market.yourRequest")}</span>
-            <h1>{title(job)}</h1><div className="pay-line"><strong>{symbol} {job.daily_rate.toLocaleString(bcp47)}</strong> {t("market.perDay")}</div>
+            <h1>{title(job)}</h1>{worker && job.hirer_reputation?.pays_on_time_badge && <span className="pays-badge">✅ {t("hirer.pays_badge")}</span>}<div className="pay-line"><strong>{symbol} {job.daily_rate.toLocaleString(bcp47)}</strong> {t("market.perDay")}</div>
             <div className="facts"><span><Icon name="pin"/>{job.location_text}</span><span><Icon name="clock"/>{time(job)} · {t("ui.job.hours",{h:job.hours_per_day})}</span>
             <span><Icon name="work"/>{t(receipt?"market.bookedByYou":worker?"map.spots":"map.booked", {n:worker ? job.headcount-job.booked : job.booked,total:job.headcount})}</span></div>
             {receipt ? <div className="contact-panel">
@@ -171,7 +175,7 @@ export function MapHome({ location }: { location: WorkLocation }) {
             {!worker && <button className="primary post-action" onClick={()=>{setCompose(true); setExpanded(true);setNotice("");}} disabled={!located}><Icon name="plus"/>{t("map.request")}</button>}
             {loading ? <p role="status" className="muted">{t("market.loading")}</p> : !error && (worker?openJobs:rows).length===0 && (located || !worker) && <div className="empty"><Icon name={worker?"map":"work"} size={28}/><h2>{t(worker?"ui.jobs.empty":"market.noRequests")}</h2><p>{t(worker?"market.tryArea":"market.postHint")}</p></div>}
             <div className="job-list">{(worker?openJobs:rows).map(j=><button key={j.id} className="job-row" onClick={()=>select(j.id)}>
-              <span className="row-title"><strong>{title(j)}</strong><b>{symbol} {j.daily_rate.toLocaleString(bcp47)}</b></span>
+              <span className="row-title"><strong><span className="trade-icon" aria-hidden="true">{country?.trades.find(tr=>tr.code===j.task)?.icon || "🛠️"}</span>{title(j)}</strong><b>{symbol} {j.daily_rate.toLocaleString(bcp47)}</b></span>
               <span className="row-sub">{j.location_text}{worker && " · "+t("ui.job.km",{km:j.distance_km||0})}</span>
               <span className="row-foot"><span>{time(j)}</span><em>{worker ? t("map.spots",{n:j.headcount-j.booked}) : j.booking_expired ? t("map.expired") : t("map.booked",{n:j.booked,total:j.headcount})}</em></span></button>)}</div>
             <PushControl/></section>}

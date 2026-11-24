@@ -1,5 +1,15 @@
 # Dihari — 3-minute demo script
 
+## Quick prototype demo (one-tap accounts)
+1. `cd backend && .venv\Scripts\python scripts/seed.py` (safe to re-run) then `.venv\Scripts\uvicorn app.main:app --reload`.
+2. `cd frontend && npm run dev`, open http://localhost:5173.
+3. On the welcome screen tap **Try the demo → Hirer**. Tap **Request workers**, pick a trade (the ⚖️ box shows the usual rate and the legal minimum), or tap **Speak** and say the job; Gemini fills the form.
+4. Tap the yellow **Switch to Labourer** button in the header. The new job is in the list; open it and tap **Accept**. Repeat with as many jobs as you like.
+5. Tap the medal icon in the header to open the **Kaam Card**: level (Naya → Trusted → Expert → Gold Expert), earnings and verified work history.
+6. Switch back to the hirer: offers show each worker's level badge.
+
+Demo logins work only while `DEV_MODE=true`.
+
 Setup (once): `cd backend && .venv/bin/python scripts/seed.py && .venv/bin/uvicorn app.main:app` and `cd frontend && npm run dev`. Open two browser windows (hirer / worker). OTP appears on the login screen (`DEV_MODE`, stub SMS). No microphone / ASR yet? Use the **"type instead"** box — the flow is identical (set `MOCK_ASR_FIXED_TEXT` to demo a canned transcript through the server ASR path).
 
 The same story is an automated test: `backend/tests/test_demo_scenario.py`.

@@ -10,6 +10,15 @@ Local development defaults to on-screen stub OTPs and database notifications. Fo
 
 For background delivery install the backend with its push extra (`pip install -e ".[push]"`). The backend Docker image includes it. Set NOTIFY_PROVIDERS=webpush,log, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT. Use the URL-safe base64 application public key, the corresponding pywebpush-compatible private key and a mailto contact. Serve the production PWA over HTTPS or localhost. Sign in and select Enable job alerts. The delivery loop reads committed inbox entries and retries transient errors. Nearby-job alerts use the worker’s saved trade, area and radius. Deleting a browser subscription disables background delivery on that device.
 
+## Google Gemini (wired in)
+
+`backend/app/ai/providers/gemini.py` uses one key for job extraction (LLM), Urdu speech-to-text and read-aloud (TTS).
+Set in `backend/.env`: `GEMINI_API_KEY`, `ASR_PROVIDERS=gemini,mock`, `TTS_PROVIDERS=gemini,mock`,
+`LLM_EXTRACT_PROVIDERS=gemini,mock-a`. Each kind tries a list of models (`GEMINI_TEXT_MODELS`, `GEMINI_ASR_MODELS`,
+`GEMINI_TTS_MODELS`) because single models are sometimes overloaded; if all fail, the chain falls back to the offline mock.
+Numbers Gemini extracts are still checked against the transcript in code, and the wage floor is still pure code.
+The verifier stays `mock-b` until a second, non-Gemini model is added (`providers/_template.py`).
+
 ## Voice providers
 1. **Check the provider's CURRENT docs first** (languages, pricing, request format). Do not rely on memory. For ASR confirm Urdu, Punjabi, Sindhi and Pashto support and which model/version; for TTS confirm a natural Urdu voice.
 2. Create `backend/app/ai/providers/<name>.py`. Implement the interface from `app/ai/base.py`:

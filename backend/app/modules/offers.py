@@ -67,10 +67,5 @@ def withdraw(db: Session, offer: Offer, worker: User) -> Offer:
         raise OfferError("already_selected")
     offer.status = "withdrawn"
     audit.log(db, worker.id, "offer", offer.id, "withdrawn")
-    if commit:
-        from .notifications import notify
-        notify(db, job.hirer_id, "new_offer", job.id)
-        db.commit()
-    else:
-        db.flush()
+    db.commit()
     return offer

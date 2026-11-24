@@ -98,11 +98,15 @@ def check(*, country: str, region: str, daily_rate: int | None, hours_per_day: f
 
     total_ded = 0
     for d in deductions or []:
-        amt = d.get("amount")
-        if amt is None:
-            v.append(Violation("hidden_deduction", {"label": d.get("label") or "?"}))
+        amt = d.get("amount") if isinstance(d, dict) else None
+        try:
+            amt = None if amt is None else int(amt)
+        except (TypeError, ValueError):
+            amt = None
+        if amt is None or amt < 0:
+            v.append(Violation("hidden_deduction", {"label": (d.get("label") if isinstance(d, dict) else None) or "?"}))
         else:
-            total_ded += int(amt)
+            total_ded += amt
     if daily_rate is not None and total_ded and not any(x.code == "below_min_wage" for x in v):
         net = daily_rate - total_ded / max(days, 1)
         if net < rule.min_daily_wage:

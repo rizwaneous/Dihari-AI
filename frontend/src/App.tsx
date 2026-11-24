@@ -5,7 +5,8 @@ import { useWorkLocation } from "./components/useWorkLocation";
 import PostJob from "./pages/PostJob";
 import { MapHome } from "./pages/MapHome";
 import { JobDetail, MyJobs } from "./pages/Hirer";
-import { Counter, Me, MyWork } from "./pages/Worker";
+import { Counter, MyWork } from "./pages/Worker";
+import { KaamCard } from "./pages/KaamCard";
 import { useSession } from "./session";
 import { useEffect, useState } from "react";
 
@@ -43,7 +44,7 @@ export default function App() {
             <Route path="/" element={<MapHome key={me.id} location={location} />} />
             <Route path="/counter/:id" element={<Counter />} />
             <Route path="/work" element={<MyWork />} />
-            <Route path="/me" element={<Me />} />
+            <Route path="/me" element={<KaamCard />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
           {route.pathname !== "/" && <TabBar tabs={[{ to: "/", icon: "◎", label: t("map.area") }, { to: "/work", icon: "🛠️", label: t("ui.tab.mywork") }, { to: "/me", icon: "👤", label: t("ui.tab.me") }]} />}

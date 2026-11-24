@@ -73,7 +73,7 @@ def create_job(db: Session, hirer: User, f: dict, *, readback_verified: bool = F
         raise JobRejected("posting_restricted")
     from .abuse import RateLimited
     try:
-        limiter.check(f"post:{hirer.id}", 5, 3600)
+        limiter.check(f"post:{hirer.id}", s.max_posts_per_hirer_per_hour, 3600)
     except RateLimited:
         raise JobRejected("rate_limited")
     day_ago = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)

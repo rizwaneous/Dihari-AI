@@ -1,0 +1,11 @@
+{
+  "_note": "Worker tiers (Dihari Score). Counted over the last `window_days`. Tune with real data; order = lowest to highest.",
+  "window_days": 90,
+  "rating_prior": {"weight": 4, "mean": 3.5},
+  "tiers": [
+    {"code": "naya",        "icon": "🪖", "color": "#8a9a91", "min_jobs": 0,  "min_show_up": 0,    "min_rating": 0,   "min_hirers": 0, "boost": 0.0},
+    {"code": "bharosemand", "icon": "🥈", "color": "#6b7f99", "min_jobs": 5,  "min_show_up": 0.85, "min_rating": 3.8, "min_hirers": 1, "boost": 0.05},
+    {"code": "ustad",       "icon": "🥇", "color": "#c58a12", "min_jobs": 20, "min_show_up": 0.92, "min_rating": 4.3, "min_hirers": 5, "boost": 0.10},
+    {"code": "ustad_gold",  "icon": "💎", "color": "#2f7fbf", "min_jobs": 50, "min_show_up": 0.96, "min_rating": 4.6, "min_hirers": 10, "boost": 0.15}
+  ]
+}
