@@ -74,6 +74,10 @@ class CountryConfig(BaseModel):
     trades: list[Trade] = []
     places: list[Place] = []
     holidays: list[Holiday] = []
+    emergency_number: str | None = None     # shown on the safety screen
+    late_cancel_hours: int = 12             # a hirer cancelling closer than this to the start owes a fee
+    late_cancel_fee: int = 0                # per booked worker, in whole currency units
+    urgent_radius_km: float = 3             # "needed now" posts ping free workers this close
 
     # -- phone ---------------------------------------------------------
     def normalize_phone(self, raw: str) -> str | None:

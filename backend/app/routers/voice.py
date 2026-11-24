@@ -42,6 +42,11 @@ class TtsIn(BaseModel):
     lang: str = "ur"
 
 
+class CommandIn(BaseModel):
+    transcript: str
+    lang: str | None = None
+
+
 class IntentIn(BaseModel):
     transcript: str
     lang: str | None = None
@@ -139,3 +144,12 @@ def agreement_readback(agreement_id: str, user: User = Depends(current_user), db
     j = db.get(Job, ag.job_id)
     f = dict(t, headcount=j.headcount)
     return {"text": readback.render(f, cfg, user.locale, datetime.now(timezone.utc))}
+
+
+@router.post("/voice/command")
+def command(body: CommandIn, user: User = Depends(current_user)):
+    """Spoken navigation: returns which screen/action to open and a sentence to say back."""
+    from ..ai import commands
+    _limit(user)
+    lang = body.lang or user.locale
+    return commands.route(body.transcript[:500], user.role, get_country(user.country_code), lang, service.get_chain("extract"))

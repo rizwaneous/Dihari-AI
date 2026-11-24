@@ -91,6 +91,7 @@ class Job(Base):
     rule_version: Mapped[str | None] = mapped_column(String(40))
     rule_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     flagged: Mapped[bool] = mapped_column(Boolean, default=False)
+    urgent: Mapped[bool] = mapped_column(Boolean, default=False)   # "Abhi chahiye": same-day, pinged to free workers nearby
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
 
@@ -241,3 +242,100 @@ class AICallLog(Base):
     ok: Mapped[bool] = mapped_column(Boolean)
     latency_ms: Mapped[int] = mapped_column(Integer)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+# ---------------------------------------------------------------- Round 2: practical features
+class Availability(Base):
+    """'Aaj farigh hoon': a worker is free today. Expires at the end of the local day."""
+    __tablename__ = "availability"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    until: Mapped[datetime] = mapped_column(UTCDateTime)
+    lat: Mapped[float | None] = mapped_column(Float)
+    lon: Mapped[float | None] = mapped_column(Float)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
+class Invite(Base):
+    """A hirer asks a specific (free) worker to take a job. The worker accepts by booking it."""
+    __tablename__ = "invites"
+    __table_args__ = (UniqueConstraint("job_id", "worker_id"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), index=True)
+    worker_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    hirer_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[str] = mapped_column(String(10), default="pending")   # pending|accepted|declined
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class Attendance(Base):
+    """Site check-in / check-out, one row per assignment per local day."""
+    __tablename__ = "attendance"
+    __table_args__ = (UniqueConstraint("assignment_id", "day"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    assignment_id: Mapped[str] = mapped_column(ForeignKey("assignments.id"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    check_in_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    check_out_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    distance_m: Mapped[int | None] = mapped_column(Integer)          # from the job site at check-in
+    marked_by: Mapped[str] = mapped_column(String(8), default="worker")   # worker | hirer (thekedar marks for his team)
+
+
+class LedgerEntry(Base):
+    """Hisaab: money that moved (or is owed) on one assignment. Rows are never edited, only confirmed."""
+    __tablename__ = "ledger_entries"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    assignment_id: Mapped[str] = mapped_column(ForeignKey("assignments.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))      # advance | kharchi | payment | deduction | cancellation_fee
+    amount: Mapped[int] = mapped_column(Integer)
+    method: Mapped[str | None] = mapped_column(String(12))   # cash | jazzcash | easypaisa | bank
+    reference: Mapped[str | None] = mapped_column(String(40))   # transaction id = proof
+    note: Mapped[str | None] = mapped_column(String(120))
+    created_by: Mapped[str] = mapped_column(String(40))   # user id or "system"
+    confirmed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class Team(Base):
+    """A thekedar's crew."""
+    __tablename__ = "teams"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class TeamMember(Base):
+    __tablename__ = "team_members"
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), primary_key=True)
+    worker_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    added_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class SafetyContact(Base):
+    __tablename__ = "safety_contacts"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+    phone: Mapped[str] = mapped_column(String(20))
+
+
+class Incident(Base):
+    __tablename__ = "incidents"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    assignment_id: Mapped[str | None] = mapped_column(String(32))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lon: Mapped[float | None] = mapped_column(Float)
+    notified: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class Endorsement(Base):
+    """A hirer who completed a job with a worker vouches for a skill ("Tile: 3 years")."""
+    __tablename__ = "endorsements"
+    __table_args__ = (UniqueConstraint("worker_id", "trade", "endorsed_by"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    worker_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    trade: Mapped[str] = mapped_column(String(40))
+    years: Mapped[int | None] = mapped_column(Integer)
+    endorsed_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

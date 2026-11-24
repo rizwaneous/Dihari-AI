@@ -17,7 +17,7 @@ def _optional_routers():
     """Routers added in later milestones; imported lazily so earlier milestones run."""
     import importlib
     out = []
-    for name in ("jobs", "payments", "voice", "admin", "notify", "reports"):
+    for name in ("jobs", "payments", "voice", "admin", "notify", "reports", "daily"):
         try:
             out.append(importlib.import_module(f"app.routers.{name}").router)
         except ModuleNotFoundError as e:

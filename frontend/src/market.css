@@ -132,16 +132,11 @@ html[lang=ur] .market h1,html[lang=ur] .eyebrow { letter-spacing:normal; line-he
 @media(max-width:380px) { .head-actions a:has(svg:first-child:not(:last-child)){gap:1px} .head-actions button,.head-actions a { font-size:.7em; } }
 @media(max-height:500px) and (max-width:760px) { .market-sheet,.guest-market .market-sheet,.expanded .market-sheet { flex-basis:75%; } }
 @media(prefers-reduced-motion:no-preference) and (max-width:760px) { .market-sheet { transition:flex-basis .2s ease-out; } }
-#root>div:not(.market):not([role=status]) { max-width:740px; margin-inline:auto; }
-#root>div:not(.market) header { background:#143d33; border-radius:0 0 18px 18px; }
-#root>div:not(.market) .border-4 { border-width:1px; border-color:#bacabd; }
-#root>div:not(.market) .rounded-3xl { border-radius:16px; background:#fff; }
-#root>div:not(.market) .text-4xl { font-size:1.65rem; }
-#root>div:not(.market) .text-2xl { font-size:1.22rem; }
-#root>div:not(.market) .text-xl { font-size:1.03rem; }
-#root nav.fixed { z-index:600; border-top:1px solid #bacabd; }
-#root nav.fixed a { min-height:54px; font-size:.83rem; }
-#root nav.fixed a span { font-size:1.05rem; }
+.page .border-4 { border-width:1px; border-color:#bacabd; }
+.page .rounded-3xl { border-radius:16px; background:#fff; }
+.page .text-4xl { font-size:1.65rem; }
+.page .text-2xl { font-size:1.22rem; }
+.page .text-xl { font-size:1.03rem; }
 
 /* ---------- Prototype additions: demo accounts, tiers, Kaam Card, fair rate ---------- */
 .market-head { background:linear-gradient(100deg,#0f2a23,#164b3e 70%,#1d5c4a); }

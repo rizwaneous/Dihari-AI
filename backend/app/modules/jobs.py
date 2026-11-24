@@ -116,7 +116,7 @@ def create_job(db: Session, hirer: User, f: dict, *, readback_verified: bool = F
               hours_per_day=float(f["hours_per_day"]), payment_day=payment_day, advance=int(f.get("advance") or 0),
               deductions=ded, transport_mode=f.get("transport_mode") or "none",
               transport_amount=f.get("transport_amount"), transcript=transcript, readback_verified=readback_verified,
-              rule_version=chk.rule.version, rule_verified=chk.rule.verified)
+              rule_version=chk.rule.version, rule_verified=chk.rule.verified, urgent=bool(f.get("urgent")))
     db.add(job)
     db.flush()
     audit.log(db, hirer.id, "job", job.id, "created", None, S.open.value,
@@ -127,5 +127,8 @@ def create_job(db: Session, hirer: User, f: dict, *, readback_verified: bool = F
                                                trade=job.task, limit=None):
         if dist <= (profile.radius_km or cfg.default_radius_km) * 1000:
             notify(db, worker.id, "nearby_job", job.id)
+    if job.urgent:
+        from .daily import notify_urgent
+        notify_urgent(db, job)
     db.commit()
     return job

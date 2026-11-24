@@ -3,7 +3,7 @@ import { disablePush } from "./components/PushControl";
 import { api, getToken, setToken } from "./api";
 
 export interface Me { id: string; role: "worker" | "hirer"; name?: string; country: string; locale: string; profile?: any }
-export interface Country { code: string; currency: { code: string; symbol: string }; trades: { code: string; icon: string; names: Record<string, string> }[]; places: { name: string; region: string; lat: number; lon: number }[]; rate_step: number; max_counter_multiple: number; default_radius_km: number; max_radius_km: number; languages: string[] }
+export interface Country { code: string; currency: { code: string; symbol: string }; trades: { code: string; icon: string; names: Record<string, string> }[]; places: { name: string; region: string; lat: number; lon: number }[]; rate_step: number; max_counter_multiple: number; default_radius_km: number; max_radius_km: number; languages: string[]; emergency_number?: string; late_cancel_hours?: number; late_cancel_fee?: number }
 interface Ctx { me: Me | null; country: Country | null; loading: boolean; refresh: () => Promise<void>; logout: () => void; role: string; setRole: (r: string) => void }
 const C = createContext<Ctx>(null as any);
 

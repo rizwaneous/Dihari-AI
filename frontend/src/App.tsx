@@ -1,12 +1,14 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { Skeleton, TabBar } from "./components/ui";
+import { Skeleton } from "./components/ui";
 import { useI18n } from "./i18n";
 import { useWorkLocation } from "./components/useWorkLocation";
+import { AppShell } from "./components/Shell";
 import PostJob from "./pages/PostJob";
 import { MapHome } from "./pages/MapHome";
 import { JobDetail, MyJobs } from "./pages/Hirer";
 import { Counter, MyWork } from "./pages/Worker";
 import { KaamCard } from "./pages/KaamCard";
+import { FreeWorkers, HelpPage, PublicCard, TeamPage } from "./pages/Daily";
 import { useSession } from "./session";
 import { useEffect, useState } from "react";
 
@@ -18,38 +20,38 @@ function OfflineBanner() {
 }
 
 export default function App() {
-  const { ready, t } = useI18n();
+  const { ready } = useI18n();
   const { me, loading } = useSession();
   const location = useWorkLocation();
   const route = useLocation();
   if (!ready || loading) return <Skeleton />;
+  // The shared Kaam Card link works for anyone, logged in or not.
+  if (route.pathname.startsWith("/card/")) return <Routes><Route path="/card/:token" element={<PublicCard />} /></Routes>;
   if (!me) return <MapHome key="guest" location={location} />;
   return (
-    <>
+    <AppShell>
       <OfflineBanner />
       {me.role === "hirer" ? (
-        <>
-          <Routes>
-            <Route path="/" element={<MapHome key={me.id} location={location} />} />
-            <Route path="/post/assisted" element={<PostJob />} />
-            <Route path="/jobs-mine" element={<MyJobs />} />
-            <Route path="/jobs-mine/:id" element={<JobDetail />} />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-          {route.pathname !== "/" && <TabBar tabs={[{ to: "/", icon: "◎", label: t("map.area") }, { to: "/jobs-mine", icon: "📋", label: t("ui.tab.myjobs") }]} />}
-        </>
+        <Routes>
+          <Route path="/" element={<MapHome key={me.id} location={location} />} />
+          <Route path="/post/assisted" element={<PostJob />} />
+          <Route path="/jobs-mine" element={<MyJobs />} />
+          <Route path="/jobs-mine/:id" element={<JobDetail />} />
+          <Route path="/workers" element={<FreeWorkers location={location} />} />
+          <Route path="/team" element={<TeamPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       ) : (
-        <>
-          <Routes>
-            <Route path="/" element={<MapHome key={me.id} location={location} />} />
-            <Route path="/counter/:id" element={<Counter />} />
-            <Route path="/work" element={<MyWork />} />
-            <Route path="/me" element={<KaamCard />} />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-          {route.pathname !== "/" && <TabBar tabs={[{ to: "/", icon: "◎", label: t("map.area") }, { to: "/work", icon: "🛠️", label: t("ui.tab.mywork") }, { to: "/me", icon: "👤", label: t("ui.tab.me") }]} />}
-        </>
+        <Routes>
+          <Route path="/" element={<MapHome key={me.id} location={location} />} />
+          <Route path="/counter/:id" element={<Counter />} />
+          <Route path="/work" element={<MyWork />} />
+          <Route path="/me" element={<KaamCard />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       )}
-    </>
+    </AppShell>
   );
 }

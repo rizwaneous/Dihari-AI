@@ -1,23 +1,24 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ApiError } from "../api";
 import { useI18n } from "../i18n";
 import { canListen, listen, speak, stopSpeaking, type Listener } from "../voice";
 import { DemoSwitch } from "./Demo";
+import { Icon } from "./Icon";
 
-type Tone = "green" | "red" | "gray" | "blue";
-const tones: Record<Tone, string> = {
-  green: "bg-green-700 text-white active:bg-green-900", red: "bg-red-700 text-white active:bg-red-900",
-  gray: "bg-gray-200 text-black active:bg-gray-300 border-2 border-gray-500", blue: "bg-blue-800 text-white active:bg-blue-950",
-};
+type Tone = "green" | "red" | "gray" | "blue" | "gold";
 
-export function BigButton({ tone = "green", icon, children, onClick, disabled, className = "" }: { tone?: Tone; icon?: ReactNode; children: ReactNode; onClick?: () => void; disabled?: boolean; className?: string }) {
+export function BigButton({ tone = "green", icon, children, onClick, disabled, className = "", small }: { tone?: Tone; icon?: ReactNode; children: ReactNode; onClick?: () => void; disabled?: boolean; className?: string; small?: boolean }) {
   return (
-    <button onClick={onClick} disabled={disabled} className={`w-full min-h-[72px] rounded-2xl px-4 text-2xl font-bold flex items-center justify-center gap-3 disabled:opacity-50 ${tones[tone]} ${className}`}>
-      {icon && <span aria-hidden className="text-3xl">{icon}</span>}{children}
+    <button onClick={onClick} disabled={disabled} className={`btn btn-${tone}${small ? " btn-sm" : ""} ${className}`}>
+      {icon && <span aria-hidden className="ico">{icon}</span>}<span>{children}</span>
     </button>
   );
 }
+
+/** Auto-voice: every screen reads itself aloud on open unless the person turned it off. */
+export const autoVoiceOn = () => { try { return localStorage.getItem("autoVoice") !== "off"; } catch { return true; } };
+export const setAutoVoice = (on: boolean) => { try { localStorage.setItem("autoVoice", on ? "on" : "off"); } catch { /* */ } };
 
 export function SpeakerButton({ text, load, auto }: { text?: string; load?: () => Promise<string>; auto?: boolean }) {
   const { t, bcp47, lang } = useI18n();
@@ -25,22 +26,23 @@ export function SpeakerButton({ text, load, auto }: { text?: string; load?: () =
   const play = async () => {
     setOn(true);
     try { const s = load ? await load() : text || ""; if (s) await speak(s, bcp47, lang); } catch { /* visual fallback remains */ }
-    setTimeout(() => setOn(false), 800);
+    setTimeout(() => setOn(false), 1200);
   };
-  useEffect(() => { if (auto && (text || load)) play(); return () => stopSpeaking(); /* eslint-disable-next-line */ }, [text, auto]);
+  useEffect(() => { if (auto && autoVoiceOn() && (text || load)) play(); return () => stopSpeaking(); /* eslint-disable-next-line */ }, [text, auto]);
   return (
-    <button aria-label={t("ui.speak")} onClick={on ? () => { stopSpeaking(); setOn(false); } : play}
-      className={`min-w-[64px] min-h-[64px] rounded-full text-3xl flex items-center justify-center border-4 ${on ? "bg-blue-800 text-white border-blue-950" : "bg-blue-100 border-blue-800"}`}>
+    <button aria-label={t("ui.speak")} title={t("ui.speak")} onClick={on ? () => { stopSpeaking(); setOn(false); } : play} className={`speaker${on ? " on" : ""}`}>
       <span aria-hidden>🔊</span>
     </button>
   );
 }
 
-export function ScreenHeader({ title, speakText, auto }: { title: string; speakText: string; auto?: boolean }) {
+export function ScreenHeader({ title, speakText, auto, back }: { title: string; speakText: string; auto?: boolean; back?: string }) {
+  const { t } = useI18n();
   return (
-    <header className="flex items-center justify-between gap-3 p-4 bg-brand text-white sticky top-0 z-10">
-      <h1 className="text-2xl font-bold">{title}</h1>
-      <div className="flex items-center gap-2"><DemoSwitch /><SpeakerButton text={speakText || title} auto={auto} /></div>
+    <header className="screen-head">
+      {back && <Link to={back} className="back" aria-label={t("ui.back")}><Icon name="back" size={22} /></Link>}
+      <h1>{title}</h1>
+      <div className="head-tools"><DemoSwitch /><SpeakerButton text={speakText || title} auto={auto ?? true} /></div>
     </header>
   );
 }
@@ -54,7 +56,7 @@ export function ErrorRetry({ error, onRetry }: { error: unknown; onRetry: () => 
   const e = error as ApiError;
   const msg = e?.status === 0 ? t("ui.error.network") : e?.status === 429 ? t("ui.error.rate_limited") : t("ui.error.generic");
   return (
-    <div role="alert" className="m-4 p-4 rounded-2xl border-4 border-red-700 bg-red-50 space-y-3">
+    <div role="alert" className="card warn">
       <p className="text-xl font-bold text-red-900">⚠️ {msg}</p>
       <BigButton tone="red" icon="🔄" onClick={onRetry}>{t("ui.retry")}</BigButton>
     </div>
@@ -63,12 +65,11 @@ export function ErrorRetry({ error, onRetry }: { error: unknown; onRetry: () => 
 
 export function Stepper({ value, onChange, min, max, step, unit }: { value: number; onChange: (v: number) => void; min: number; max: number; step: number; unit?: string }) {
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
-  const b = "min-w-[72px] min-h-[72px] rounded-2xl text-4xl font-bold bg-gray-200 border-2 border-gray-600 active:bg-gray-300 disabled:opacity-40";
   return (
-    <div className="flex items-center justify-between gap-3" dir="ltr">
-      <button className={b} aria-label="minus" disabled={value <= min} onClick={() => onChange(clamp(value - step))}>−</button>
-      <div className="text-center"><div className="text-5xl font-bold tabular-nums">{value}</div>{unit && <div className="text-lg">{unit}</div>}</div>
-      <button className={b} aria-label="plus" disabled={value >= max} onClick={() => onChange(clamp(value + step))}>+</button>
+    <div className="stepper" dir="ltr">
+      <button aria-label="minus" disabled={value <= min} onClick={() => onChange(clamp(value - step))}>−</button>
+      <div className="val"><b>{value.toLocaleString("en-US")}</b>{unit && <span>{unit}</span>}</div>
+      <button aria-label="plus" disabled={value >= max} onClick={() => onChange(clamp(value + step))}>+</button>
     </div>
   );
 }
@@ -91,31 +92,19 @@ export function MicInput({ onText, placeholder, busy }: { onText: (s: string) =>
     <div className="space-y-3">
       {!typing || l ? (
         <button onClick={l ? () => l.stop() : start} disabled={busy} aria-label={t("ui.post.tap")}
-          className={`mx-auto flex flex-col items-center justify-center w-44 h-44 rounded-full text-7xl text-white shadow-lg ${l ? "bg-red-700 animate-pulse" : "bg-green-700 active:bg-green-900"}`}>
-          <span aria-hidden>🎤</span><span className="text-lg mt-1">{l ? t("ui.post.listening") : t("ui.post.tap")}</span>
+          className={`mic${l ? " on" : ""}`}>
+          <span aria-hidden>🎤</span><small>{l ? t("ui.post.listening") : t("ui.post.tap")}</small>
         </button>
       ) : null}
       {err && <p role="alert" className="text-center text-red-800 font-bold">{err}</p>}
       {typing ? (
         <div className="space-y-2">
           <textarea value={txt} onChange={(e) => setTxt(e.target.value)} placeholder={placeholder || t("ui.post.type_ph")} rows={3}
-            className="w-full rounded-2xl border-4 border-gray-600 p-3 text-xl" />
+            className="w-full rounded-2xl border-2 border-gray-400 p-3 text-xl" />
           <BigButton disabled={!txt.trim() || busy} onClick={() => { onText(txt); setTxt(""); }}>{t("ui.post.send")}</BigButton>
         </div>
-      ) : <button className="block mx-auto underline text-lg min-h-[56px]" onClick={() => setTyping(true)}>⌨️ {t("ui.post.type")}</button>}
+      ) : <button className="link-btn" onClick={() => setTyping(true)}>⌨️ {t("ui.post.type")}</button>}
     </div>
-  );
-}
-
-export function TabBar({ tabs }: { tabs: { to: string; icon: string; label: string }[] }) {
-  return (
-    <nav className="fixed bottom-0 inset-x-0 bg-white border-t-4 border-brand grid z-20" style={{ gridTemplateColumns: `repeat(${tabs.length},1fr)` }}>
-      {tabs.map((tb) => (
-        <NavLink key={tb.to} to={tb.to} end className={({ isActive }) => `min-h-[72px] flex flex-col items-center justify-center text-lg font-bold ${isActive ? "bg-brand text-white" : "text-black"}`}>
-          <span className="text-3xl" aria-hidden>{tb.icon}</span>{tb.label}
-        </NavLink>
-      ))}
-    </nav>
   );
 }
 
@@ -144,3 +133,12 @@ export function useAsync<T>(fn: () => Promise<T>, deps: any[] = [], live = false
 
 export const money = (n: number, sym: string) => `${sym} ${n.toLocaleString("en-US")}`;
 export const pct = (x: number | null | undefined) => (x == null ? null : `${Math.round(x * 100)}%`);
+
+/** Friendly sentence for an API error code (err.<code> in the locale files), else the generic one. */
+export function errMsg(t: (k: string, p?: Record<string, string | number>) => string, e: unknown): string {
+  const a = e as ApiError;
+  if (a?.status === 0) return t("ui.error.network");
+  const k = "err." + (a?.code || "x");
+  const s = t(k);
+  return s === k ? t("ui.error.generic") : s;
+}

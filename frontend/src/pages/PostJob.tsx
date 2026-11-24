@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { BigButton, ErrorRetry, MicInput, ScreenHeader, SpeakerButton, Stepper } from "../components/ui";
 import { useI18n } from "../i18n";
 import { useSession } from "../session";
+import { TradeIcon } from "../components/TradeIcon";
 
 const VIOLATION_FIELD: Record<string, string> = { below_min_wage: "daily_rate", net_below_min_wage: "daily_rate", hours_exceed_max: "hours_per_day",
   missing_payment_day: "payment_day", payment_too_late: "payment_day", payment_before_start: "payment_day", hidden_deduction: "deductions" };
@@ -18,10 +19,10 @@ function FieldAsker({ field, fields, onPatch }: { field: string; fields: any; on
   const [hour, setHour] = useState(8);
   const [day, setDay] = useState<0 | 1>(1);
   const cur = country?.currency.symbol || "";
-  const chip = "min-h-[64px] px-4 rounded-2xl text-xl font-bold border-4 border-gray-600 bg-white active:bg-gray-200";
+  const chip = "chip !rounded-2xl min-h-[64px] text-xl flex items-center gap-2 justify-center";
   const startDate = fields.start_at ? new Date(fields.start_at) : new Date();
   switch (field) {
-    case "task": return <div className="grid grid-cols-2 gap-3">{country?.trades.map((tr) => <button key={tr.code} className={chip} onClick={() => onPatch({ task: tr.code })}><span aria-hidden className="text-2xl">{tr.icon}</span> {tr.names[lang] || tr.names.en}</button>)}</div>;
+    case "task": return <div className="grid grid-cols-2 gap-3">{country?.trades.map((tr) => <button key={tr.code} className={chip + " !min-h-[96px] flex-col"} onClick={() => onPatch({ task: tr.code })}><TradeIcon code={tr.code} size={44} /> {tr.names[lang] || tr.names.en}</button>)}</div>;
     case "location_text": return <div className="flex flex-wrap gap-3">{country?.places.map((p) => <button key={p.name} className={chip} onClick={() => onPatch({ location_text: p.name })}>{p.name}</button>)}</div>;
     case "headcount": return <div className="space-y-4"><Stepper value={num} onChange={setNum} min={1} max={50} step={1} unit={t("ui.q.unit.workers")} /><BigButton onClick={() => onPatch({ headcount: num })}>{t("ui.ok")}</BigButton></div>;
     case "daily_rate": return <div className="space-y-4"><Stepper value={num} onChange={setNum} min={100} max={20000} step={country?.rate_step || 50} unit={`${cur} ${t("ui.q.unit.rate")}`} /><BigButton onClick={() => onPatch({ daily_rate: num })}>{t("ui.ok")}</BigButton></div>;
@@ -62,6 +63,10 @@ export default function PostJob() {
   const [err, setErr] = useState<unknown>(null);
   const [retry, setRetry] = useState<(() => void) | null>(null);
   const [transcript, setTranscript] = useState("");
+  // Arriving from the voice assistant ("2 mistri chahiye kal G-13 mein"): start the draft from what was said.
+  const spoken = (useLocation().state as any)?.text as string | undefined;
+  const used = useRef(false);
+  useEffect(() => { if (spoken && !used.current) { used.current = true; onTranscript(spoken); } /* eslint-disable-next-line */ }, [spoken]);
 
   const run = (fn: () => Promise<any>) => {
     const go = async () => { setBusy(true); setErr(null); try { const d = await fn(); setDraft(d); setFields(d.fields); } catch (e) { setErr(e); } setBusy(false); };
@@ -84,8 +89,8 @@ export default function PostJob() {
 
   const unverified = draft?.wage?.warnings?.some((w: any) => w.code === "unverified_rule");
   return (
-    <div className="pb-6">
-      <ScreenHeader title={t("ui.post.title")} speakText={draft?.ready ? `${draft.readback} ${t("ui.post.confirm_q")}` : draft?.next_question?.prompt || t("ui.post.speak")} auto={!!draft} />
+    <div className="page">
+      <ScreenHeader back="/" title={t("ui.post.title")} speakText={draft?.ready ? `${draft.readback} ${t("ui.post.confirm_q")}` : draft?.next_question?.prompt || t("ui.post.speak")} auto={!!draft} />
       {unverified && <p className="m-4 p-3 rounded-2xl bg-yellow-100 border-4 border-yellow-600 text-lg font-bold">⚠️ {t("ui.post.unverified")}</p>}
       {!!err && (err as ApiError).code === "wage_floor"
         ? <p role="alert" className="m-4 p-3 bg-red-50 border-4 border-red-700 rounded-2xl font-bold">{(err as ApiError).detail?.detail?.violations?.map((v: any) => v.message).join(" ")}</p>
@@ -93,10 +98,10 @@ export default function PostJob() {
       {draft?.degraded && <p className="m-4 text-lg font-bold">{t("ui.post.degraded")}</p>}
 
       {!draft ? (
-        <div className="p-4 space-y-6"><p className="text-xl text-center">{t("ui.post.speak")}</p><MicInput busy={busy} onText={onTranscript} /></div>
+        <div className="page-body"><p className="text-xl text-center">{t("ui.post.speak")}</p><MicInput busy={busy} onText={onTranscript} /></div>
       ) : draft.ready ? (
-        <div className="p-4 space-y-5">
-          <div className="p-4 rounded-2xl border-4 border-brand bg-brand-light text-2xl leading-loose font-bold">{draft.readback}</div>
+        <div className="page-body">
+          <div className="card gold text-2xl font-bold">{draft.readback}</div>
           {draft.verifier && !draft.verifier.available && <p className="text-lg font-bold text-yellow-900">⚠️ {t("ui.post.verifier_warn")}</p>}
           {!draft.can_post ? <p className="text-xl font-bold text-red-800">{t("ui.post.blocked")}</p> : (
             <>
@@ -107,7 +112,7 @@ export default function PostJob() {
           <BigButton tone="red" icon="✖" onClick={reset}>{t("ui.post.edit")}</BigButton>
         </div>
       ) : (
-        <div className="p-4 space-y-5">
+        <div className="page-body">
           {violations.length > 0 && (
             <div role="alert" className="p-4 rounded-2xl border-4 border-red-700 bg-red-50 space-y-3">
               <p className="text-xl font-bold text-red-900">⛔ {t("ui.post.blocked")}</p>

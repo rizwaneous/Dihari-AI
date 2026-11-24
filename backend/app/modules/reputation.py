@@ -26,7 +26,8 @@ def hirer_reputation(db: Session, hirer_id: str) -> dict:
     paid, unpaid = c.get("paid", 0), c.get("unpaid", 0)
     jobs_posted = db.scalar(select(func.count()).select_from(Job).where(Job.hirer_id == hirer_id))
     rate = paid / (paid + unpaid) if paid + unpaid else None
-    return {"on_time_payment_rate": rate, "reports": paid + unpaid, "jobs_posted": jobs_posted, "self_reported": True,
+    from .daily import late_cancellations
+    return {"late_cancellations": late_cancellations(db, hirer_id), "on_time_payment_rate": rate, "reports": paid + unpaid, "jobs_posted": jobs_posted, "self_reported": True,
             "pays_on_time_badge": bool(rate is not None and paid + unpaid >= 3 and rate >= 0.9)}
 
 
@@ -131,4 +132,9 @@ def worker_stats(db: Session, worker_id: str) -> dict:
                         "days": agr.terms.get("days"), "daily_rate": agr.terms["daily_rate"], "rating": asg.rating,
                         "paid": asg.payment_report, "proof": agr.terms_hash[:10]})
     return {"earned_week": week, "earned_month": month, "earned_total": total, "owed": owed, "days_by_trade": trades,
-            "history": history[:20], "tier": worker_tier(db, worker_id)}
+            "history": history[:20], "tier": worker_tier(db, worker_id), "skills": _skills(db, worker_id)}
+
+
+def _skills(db: Session, worker_id: str) -> list[dict]:
+    from .daily import skills_of
+    return skills_of(db, worker_id)

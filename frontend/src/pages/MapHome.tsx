@@ -13,6 +13,8 @@ import { Icon } from "../components/Icon";
 import { ReportLink } from "./Worker";
 import { Login } from "./Onboarding";
 import { DemoEntry, DemoSwitch } from "../components/Demo";
+import { TradeIcon } from "../components/TradeIcon";
+import { FreeToggle, Invites } from "./Daily";
 
 const preview: Point = {lat:33.6575, lon:72.959, name:"G-13"};
 const noPlaces: Point[] = [];
@@ -24,7 +26,7 @@ function distance(a: Point, b: Point) {
 }
 
 export function MapHome({ location }: { location: WorkLocation }) {
-  const {me, country, role, setRole, logout} = useSession();
+  const {me, country, role, setRole} = useSession();
   const {lang, setLang, t, bcp47} = useI18n();
   const worker = me?.role === "worker";
   const places = country?.places || noPlaces;
@@ -119,12 +121,17 @@ export function MapHome({ location }: { location: WorkLocation }) {
   const title = (j: MarketJob) => country?.trades.find(tr=>tr.code===j.task)?.names[lang] || j.task_name;
   const time = (j: MarketJob) => new Date(j.start_at).toLocaleString(bcp47,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
   const back = () => {select(""); setExpanded(false);};
+  function openInvite(id: string) {
+    const known = rows.find(j=>j.id===id);
+    if (known) {select(id); return;}
+    api<MarketJob>("/jobs/"+id).then(j=>{setRows(prev=>[j,...prev.filter(x=>x.id!==j.id)]); select(j.id);}).catch(()=>setNotice("map.unavailable"));
+  }
   return <main className={"market"+(!me?" guest-market":"")+(expanded?" expanded":"")}>
     <header className="market-head"><div className="wordmark" dir="ltr"><span className="brand-mark" aria-hidden="true">d</span>Dihari</div>
-      <div className="head-actions"><DemoSwitch/>{me && <Link to={worker?"/work":"/jobs-mine"}><Icon name="work"/>{t(worker?"ui.tab.mywork":"ui.tab.myjobs")}</Link>}
+      <div className="head-actions"><DemoSwitch/>
       {worker && <Link aria-label={t("ui.tab.me")} to="/me">{myTier ? <span aria-hidden="true">{myTier.icon}</span> : <Icon name="user"/>}</Link>}
-      <button onClick={()=>setLang(lang==="ur"?"en":"ur")}>{lang==="ur"?"English":"اردو"}</button>
-      {me && <button onClick={logout}>{t("ui.me.logout")}</button>}</div></header>
+      <button className="lang-btn" onClick={()=>setLang(lang==="ur"?"en":"ur")}>{lang==="ur"?"English":"اردو"}</button>
+      {!me && <SpeakerButton text={t("market.welcome")+". "+t("market.intro")}/>}</div></header>
     <div className="market-layout">
       <WorkMap point={point} choose={choose} jobs={mapJobs} places={places} selectJob={select} locate={location.locate}
         locating={location.status==="locating"} worker={worker} selected={selected} currency={symbol} showPoint={located}/>
@@ -152,7 +159,7 @@ export function MapHome({ location }: { location: WorkLocation }) {
           job ? <section key={job.id} className="sheet-enter details">
             <button className="back-link" onClick={back}><Icon name="back"/>{t(worker?"ui.jobs.title":"ui.tab.myjobs")}</button>
             <span className="eyebrow"><i/>{t(receipt?"market.confirmed":worker?"market.jobDetails":"market.yourRequest")}</span>
-            <h1>{title(job)}</h1>{worker && job.hirer_reputation?.pays_on_time_badge && <span className="pays-badge">✅ {t("hirer.pays_badge")}</span>}<div className="pay-line"><strong>{symbol} {job.daily_rate.toLocaleString(bcp47)}</strong> {t("market.perDay")}</div>
+            <h1>{title(job)}</h1>{job.urgent && <span className="pill urgent-badge">⚡ {t("urgent.badge")}</span>}{worker && job.hirer_reputation?.pays_on_time_badge && <span className="pays-badge">✅ {t("hirer.pays_badge")}</span>}<div className="pay-line"><strong>{symbol} {job.daily_rate.toLocaleString(bcp47)}</strong> {t("market.perDay")}</div>
             <div className="facts"><span><Icon name="pin"/>{job.location_text}</span><span><Icon name="clock"/>{time(job)} · {t("ui.job.hours",{h:job.hours_per_day})}</span>
             <span><Icon name="work"/>{t(receipt?"market.bookedByYou":worker?"map.spots":"map.booked", {n:worker ? job.headcount-job.booked : job.booked,total:job.headcount})}</span></div>
             {receipt ? <div className="contact-panel">
@@ -172,10 +179,12 @@ export function MapHome({ location }: { location: WorkLocation }) {
           </section> : <section key="feed" className="sheet-enter">
             <div className="feed-heading"><div><span className="eyebrow"><i/>{t(worker?"market.workerView":"market.hirerView")}</span>
               <h1>{t(worker?"market.openJobs":"market.requests")}</h1></div>{worker && located && <span className="radius">{radius} km</span>}</div>
+            {worker && <div className="feed-extras"><FreeToggle/><Invites onOpen={openInvite}/></div>}
             {!worker && <button className="primary post-action" onClick={()=>{setCompose(true); setExpanded(true);setNotice("");}} disabled={!located}><Icon name="plus"/>{t("map.request")}</button>}
             {loading ? <p role="status" className="muted">{t("market.loading")}</p> : !error && (worker?openJobs:rows).length===0 && (located || !worker) && <div className="empty"><Icon name={worker?"map":"work"} size={28}/><h2>{t(worker?"ui.jobs.empty":"market.noRequests")}</h2><p>{t(worker?"market.tryArea":"market.postHint")}</p></div>}
-            <div className="job-list">{(worker?openJobs:rows).map(j=><button key={j.id} className="job-row" onClick={()=>select(j.id)}>
-              <span className="row-title"><strong><span className="trade-icon" aria-hidden="true">{country?.trades.find(tr=>tr.code===j.task)?.icon || "🛠️"}</span>{title(j)}</strong><b>{symbol} {j.daily_rate.toLocaleString(bcp47)}</b></span>
+            <div className="job-list">{(worker?openJobs:rows).map(j=><button key={j.id} className={"job-row"+(j.urgent?" urgent":"")} onClick={()=>select(j.id)}>
+              <span className="row-title"><strong><span className="trade-icon" aria-hidden="true"><TradeIcon code={j.task}/></span>{title(j)}</strong><b>{symbol} {j.daily_rate.toLocaleString(bcp47)}</b></span>
+              {(j.urgent || j.invited) && <span className="flex gap-2">{j.urgent && <span className="pill urgent-badge">⚡ {t("urgent.badge")}</span>}{j.invited && <span className="pill gold">📣 {t("inv.title")}</span>}</span>}
               <span className="row-sub">{j.location_text}{worker && " · "+t("ui.job.km",{km:j.distance_km||0})}</span>
               <span className="row-foot"><span>{time(j)}</span><em>{worker ? t("map.spots",{n:j.headcount-j.booked}) : j.booking_expired ? t("map.expired") : t("map.booked",{n:j.booked,total:j.headcount})}</em></span></button>)}</div>
             <PushControl/></section>}

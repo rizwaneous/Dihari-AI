@@ -24,7 +24,8 @@ def job_view(db: Session, job: Job, viewer: User, *, from_lat=None, from_lon=Non
          "daily_rate": job.daily_rate, "hours_per_day": job.hours_per_day, "payment_day": job.payment_day.isoformat(),
          "advance": job.advance, "deductions": job.deductions, "transport_mode": job.transport_mode,
          "transport_amount": job.transport_amount, "currency": cfg.currency.code, "rule_verified": job.rule_verified,
-         "readback_verified": job.readback_verified, "hirer_reputation": reputation.hirer_reputation(db, job.hirer_id)}
+         "readback_verified": job.readback_verified, "hirer_reputation": reputation.hirer_reputation(db, job.hirer_id),
+         "urgent": bool(job.urgent)}
     v["booked"] = db.scalar(select(booked_count()).select_from(Job).where(Job.id == job.id))
     v["booking_expired"] = job.start_at < utcnow() and job.status in ("open", "offers", "assigned")
     if exact:
@@ -35,6 +36,9 @@ def job_view(db: Session, job: Job, viewer: User, *, from_lat=None, from_lon=Non
         o = db.scalars(select(Offer).where(Offer.job_id == job.id, Offer.worker_id == viewer.id)).first()
         v["my_offer"] = o and {"id": o.id, "rate": o.rate, "kind": o.kind, "status": o.status}
         v["my_assignment_id"] = asg.id if asg else None
+        from .models import Invite
+        v["invited"] = db.scalar(select(Invite.id).where(Invite.job_id == job.id, Invite.worker_id == viewer.id,
+                                                          Invite.status == "pending")) is not None
     return v
 
 
@@ -42,7 +46,9 @@ def worker_card(db: Session, w: User, job: Job, offer: Offer | None = None) -> d
     """What a hirer sees about a worker: first name + reputation. Never phone before assignment."""
     wp = db.get(WorkerProfile, w.id)
     rep = reputation.worker_reputation(db, w.id)
-    d = {"worker_id": w.id, "first_name": reputation.first_name(w), **rep}
+    from .modules import daily
+    d = {"worker_id": w.id, "first_name": reputation.first_name(w), **rep, "skills": daily.skills_of(db, w.id),
+         "available_today": daily.is_available(db, w.id)}
     if wp and wp.lat is not None:
         d["distance_km"] = round(geo.haversine_m(wp.lat, wp.lon, job.lat, job.lon) / 1000, 1)
     if offer:

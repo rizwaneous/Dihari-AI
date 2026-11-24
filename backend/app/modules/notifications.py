@@ -61,8 +61,31 @@ class InboxPush:
         return True
 
 
+class WhatsAppPush:
+    """PLACEHOLDER: WhatsApp Business Cloud API (Meta). Set WHATSAPP_TOKEN and WHATSAPP_PHONE_ID and add "whatsapp"
+    to NOTIFY_PROVIDERS. Outside a 24-hour chat window Meta only allows pre-approved templates; set
+    WHATSAPP_TEMPLATE to an approved template with one body parameter. Check Meta's current docs first."""
+    name = "whatsapp"
+
+    def send(self, db, user, title, body) -> bool:
+        s = get_settings()
+        if not (s.whatsapp_token and s.whatsapp_phone_id):
+            return False
+        to = user.phone.lstrip("+")
+        msg = ({"type": "template", "template": {"name": s.whatsapp_template, "language": {"code": user.locale},
+                "components": [{"type": "body", "parameters": [{"type": "text", "text": f"{title}: {body}"}]}]}}
+               if s.whatsapp_template else {"type": "text", "text": {"body": f"{title}\n{body}"}})
+        try:
+            r = httpx.post(f"https://graph.facebook.com/v21.0/{s.whatsapp_phone_id}/messages", timeout=8,
+                           headers={"Authorization": f"Bearer {s.whatsapp_token}"},
+                           json={"messaging_product": "whatsapp", "to": to, **msg})
+            return r.is_success
+        except httpx.HTTPError:
+            return False
+
+
 _SMS: dict[str, type] = {"stub": StubSms, "twilio": TwilioSms}
-_PUSH: dict[str, type] = {"log": InboxPush}
+_PUSH: dict[str, type] = {"log": InboxPush, "whatsapp": WhatsAppPush}
 _instances: dict[tuple, object] = {}
 
 
@@ -110,7 +133,7 @@ def notify(db: Session, user_id: str, title: str, body: str) -> str:
         p = get_push(name)
         if p is None:
             continue
-        if name != "log" and not has_sub:
+        if name not in ("log", "whatsapp") and not has_sub:
             continue
         try:
             if p.send(db, user, title, body):

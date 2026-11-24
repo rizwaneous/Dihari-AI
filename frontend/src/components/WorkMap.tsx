@@ -12,7 +12,7 @@ export type MarketJob = MapJob & {
   start_at: string; days: number; hours_per_day: number; headcount: number; booked: number;
   distance_km?: number; payment_day: string; rule_verified: boolean; advance: number;
   deductions: {label: string; amount: number}[]; transport_mode: string; transport_amount?: number;
-  my_assignment_id?: string; my_offer?: {status: string; rate: number};
+  my_assignment_id?: string; urgent?: boolean; invited?: boolean; my_offer?: {status: string; rate: number};
   hirer_reputation?: {pays_on_time_badge?: boolean; on_time_payment_rate?: number | null};
 };
 export function WorkMap({ point, jobs, places, choose, selectJob, locate, locating, worker, selected, currency, showPoint }: {

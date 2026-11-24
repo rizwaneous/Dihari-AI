@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { BigButton } from "../components/ui";
 import { api } from "../api";
 import { ErrorRetry, Skeleton, SpeakerButton, useAsync } from "../components/ui";
 import { TierBadge, TierProgress, type Tier } from "../components/Tier";
 import { useI18n } from "../i18n";
 import { useSession } from "../session";
+import { TradeIcon } from "../components/TradeIcon";
 import { ProfileForm } from "./Onboarding";
 
 type Stats = { earned_week: number; earned_month: number; earned_total: number; owed: number; tier: Tier;
+  skills?: { trade: string; endorsements: number; years: number | null }[];
   history: { job_id: string; task: string; location_text: string; start_at: string; days: number; daily_rate: number; rating: number | null; paid: string | null; proof: string }[] };
 
 /** The worker's "Kaam Card": level, earnings and a work history built only from agreed, completed jobs. */
@@ -46,20 +49,43 @@ export function KaamCard() {
         <div className="earn"><small>{t("card.total")}</small><b>{money(data.earned_total)}</b></div>
         {data.owed > 0 && <div className="earn owed"><small>{t("card.owed")}</small><b>{money(data.owed)}</b></div>}
       </section>
+      {!!data.skills?.length && <section className="card" style={{ marginBottom: 14 }}><h2>🏅 {t("skill.title")}</h2>
+        <div className="skill-list">{data.skills!.map((s) => <span key={s.trade} className="skill"><TradeIcon code={s.trade} />{trade(s.trade).name} · {t("skill.count", { n: s.endorsements })}</span>)}</div></section>}
       <section className="history">
         <h2>{t("card.history")}</h2>
         {!data.history.length && <p className="muted">{t("card.empty")}</p>}
         {data.history.map((h) => { const tr = trade(h.task); return <div key={h.job_id} className="history-row">
-          <span className="history-icon" aria-hidden="true">{tr.icon}</span>
+          <span className="history-icon" aria-hidden="true"><TradeIcon code={h.task} size={30} /></span>
           <div><strong>{tr.name}</strong><small>{h.location_text} · {new Date(h.start_at).toLocaleDateString(bcp47, { day: "numeric", month: "short" })} · {t("card.days", { n: h.days })}</small>
             <small className="proof">✔ {t("card.proof", { id: h.proof })}</small></div>
           <div className="history-end"><b>{money(h.daily_rate * h.days)}</b>
             {h.paid === "unpaid" ? <em className="unpaid">{t("card.unpaid")}</em> : h.rating ? <em>{"★".repeat(h.rating)}</em> : null}</div>
         </div>; })}
-        <p className="kaam-share">{t("card.share")}</p>
+        <ShareCard />
       </section>
     </>}
     <div className="kaam-actions"><button className="secondary" onClick={() => setEdit(true)}>✏️ {t("card.edit")}</button>
       <button className="secondary" onClick={logout}>{t("ui.me.logout")}</button></div>
+  </div>;
+}
+
+/** A link anyone can open to see this card (no addresses, no phone). Shares through WhatsApp or the phone's share sheet. */
+function ShareCard() {
+  const { t } = useI18n();
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+  const get = async () => { const r = await api<{ path: string }>("/my/card-link"); const u = location.origin + r.path; setUrl(u); return u; };
+  const share = async () => {
+    const u = url || await get();
+    const text = t("share.msg", { url: u });
+    try { if ((navigator as any).share) { await (navigator as any).share({ title: t("card.title"), text, url: u }); return; } } catch { /* cancelled */ }
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank", "noopener");
+  };
+  return <div className="kaam-share" style={{ display: "grid", gap: 10 }}>
+    <p>{t("card.share")}</p>
+    <BigButton tone="green" icon="📤" onClick={share}>{t("share.button")}</BigButton>
+    {url && <div className="card-row"><input readOnly dir="ltr" value={url} className="grow" style={{ minHeight: 44, borderRadius: 10, padding: "0 10px", border: "1px solid #ccc" }} onFocus={(e) => e.target.select()} />
+      <button className="chip" onClick={async () => { try { await navigator.clipboard.writeText(url); setCopied(true); } catch { /* */ } }}>{copied ? "✔" : t("share.copy")}</button></div>}
+    {!url && <button className="link-btn" onClick={get}>{t("share.show_link")}</button>}
   </div>;
 }

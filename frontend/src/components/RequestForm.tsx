@@ -26,10 +26,12 @@ export function RequestForm({point, area, onPosted}: {point: Point; area: string
   const [advance,setAdvance] = useState(0);
   const [fair,setFair] = useState<{median:number|null; floor:number|null; suggested:number|null} | null>(null);
   const [heard,setHeard] = useState(false);
+  const [urgent,setUrgent] = useState(false);
+  const [urgentRate,setUrgentRate] = useState<number|null>(null);
   useEffect(() => {
     if (!task) {setFair(null); return;}
     let live = true;
-    api("/jobs/fair-rate?task="+encodeURIComponent(task)+"&location_text="+encodeURIComponent(area)).then(f=>{if(live)setFair(f);}).catch(()=>{});
+    api("/jobs/fair-rate?task="+encodeURIComponent(task)+"&location_text="+encodeURIComponent(area)).then(f=>{if(live){setFair(f); setUrgentRate(f.urgent_suggested ?? null);}}).catch(()=>{});
     return () => {live=false;};
   }, [task, area]);
   const sym = country?.currency.symbol || "";
@@ -56,7 +58,7 @@ export function RequestForm({point, area, onPosted}: {point: Point; area: string
       const job = await api<MarketJob>("/jobs",{method:"POST", retries:0, body:{task,headcount:count,location_text:area,
         address_detail:landmark,lat:point.lat,lon:point.lon,start_at:new Date(start).toISOString(),
         daily_rate:Number(rate),hours_per_day:hours,payment_day:payDate || start.slice(0,10),
-        transport_mode:transport, advance}});
+        transport_mode:transport, advance, urgent}});
       onPosted(job);
     } catch(e) {
       const a = e as ApiError;
@@ -79,6 +81,8 @@ export function RequestForm({point, area, onPosted}: {point: Point; area: string
           {fair.median && Number(rate)>0 && Number(rate)<fair.median && <small className="warn">{t("fair.low")}</small>}</div>
         {fair.suggested && Number(rate)!==fair.suggested && <button type="button" className="chip-button" onClick={()=>setRate(String(fair.suggested))}>{t("fair.use",{cur:sym,rate:fair.suggested.toLocaleString()})}</button>}
       </div>}
+      <button type="button" className={"wide free-toggle"+(urgent?" on":"")} aria-pressed={urgent} onClick={()=>{const next=!urgent; setUrgent(next); if(next && urgentRate && Number(rate)<urgentRate) setRate(String(urgentRate));}}>
+        <span className="knob"><i/></span><span className="grow"><strong>⚡ {t("urgent.toggle")}</strong><small>{urgentRate ? t("urgent.hint_rate",{cur:sym,rate:urgentRate.toLocaleString()}) : t("urgent.hint")}</small></span></button>
       <label>{t("map.transport")}<select value={transport} onChange={e=>setTransport(e.target.value)}>
         <option value="none">{t("readback.transport.none")}</option><option value="provided">{t("readback.transport.provided")}</option></select></label>
       <label>{t("map.advance")} ({sym})<input type="number" min="0" inputMode="numeric" value={advance} onChange={e=>setAdvance(Math.max(0,Number(e.target.value)))}/></label>

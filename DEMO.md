@@ -39,3 +39,11 @@ The same story is an automated test: `backend/tests/test_demo_scenario.py`.
 12. Open `http://localhost:8080/admin` (or `:8000/admin`), paste token `demo-reviewer-token` ("Demo Reviewer").
 13. The case shows full detail to the reviewer only. Rules proposed follow-ups; click **Approve** on *request_hirer_response*. The hirer receives an Urdu notification **without the worker's name**; the audit log records `reviewer:Demo Reviewer`.
 14. Close as *paid* or *unresolved*. The AI decided nothing.
+
+## Round 2: daily-work features and the new look
+
+- **Voice everywhere:** the yellow mic (bottom corner, every screen) understands commands such as "کام چاہیے", "آج فارغ ہوں", "پہنچ گیا", "میرا حساب", "بچاؤ" (hirer: "دو مستری چاہیے کل", "کون فارغ ہے", "میری ٹیم"). It answers aloud and opens the right screen. Each screen also reads itself aloud on open (turn off in Help → Settings).
+- **Worker:** "Free today" switch and hirer invites on the home sheet; My work → "I've arrived" / "Done for today" (GPS check-in) and the Hisaab (earned, received, still owed, with JazzCash/Easypaisa proof); Card → share on WhatsApp (public link without address or phone).
+- **Hirer:** urgent toggle when posting; job screen → invite workers free today, book your team, mark attendance, record payments, rate and vouch for skills; Team tab → crew, who is here today, payroll with CSV; late cancellation adds a fee to the workers' hisaab.
+- **Help tab:** SOS (press twice) messages the trusted contact and today's hirer, plus a one-tap emergency call.
+- Fonts: Noto Nastaliq Urdu and Gulzar (both SIL Open Font License, bundled). Jameel Noori Nastaleeq is used automatically if already installed on the device.

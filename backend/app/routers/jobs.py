@@ -38,6 +38,7 @@ class JobIn(BaseModel):
     transport_amount: int | None = Field(default=None, ge=0)
     transcript: str | None = None
     readback_verified: bool = False
+    urgent: bool = False
 
 
 class WageCheckIn(BaseModel):
@@ -111,6 +112,7 @@ def nearby(lat: float | None = None, lon: float | None = None, radius_km: float 
         raise HTTPException(400, {"code": "no_location"})
     radius = min(radius_km or (wp.radius_km if wp else cfg.default_radius_km), cfg.max_radius_km)
     res = geo.nearby_jobs(db, lat, lon, radius, trades=(wp.trades if wp and wp.trades and not all_trades else None), country=user.country_code)
+    res = sorted(res, key=lambda x: (not x[0].urgent, x[1]))
     return [job_view(db, j, user, from_lat=lat, from_lon=lon) for j, _ in res]
 
 
@@ -136,7 +138,8 @@ def fair_rate(task: str, location_text: str | None = None, user: User = Depends(
     med = int(round(median(rates) / step) * step) if rates else None
     return {"task": task, "median": med, "low": min(rates) if rates else None, "high": max(rates) if rates else None,
             "count": len(rates), "scope": scope, "floor": floor, "currency": cfg.currency.code,
-            "suggested": max(x for x in (med, floor) if x is not None) if (med or floor) else None}
+            "suggested": max(x for x in (med, floor) if x is not None) if (med or floor) else None,
+            "urgent_suggested": int(round(max(x for x in (med, floor) if x is not None) * 1.1 / step) * step) if (med or floor) else None}
 
 
 @router.get("/{job_id}")
@@ -156,7 +159,7 @@ def list_assignments(job_id: str, user: User = Depends(need_role("hirer")), db: 
     out = []
     for a in db.scalars(select(Assignment).where(Assignment.job_id == job_id)):
         w = db.get(User, a.worker_id)
-        out.append({"assignment_id": a.id, "agreement_id": a.agreement_id, "status": a.status, "first_name": reputation.first_name(w),
+        out.append({"assignment_id": a.id, "worker_id": a.worker_id, "agreement_id": a.agreement_id, "status": a.status, "first_name": reputation.first_name(w),
                     "phone": w.phone, "my_payment_claim": a.hirer_payment_claim, "rating": a.rating,
                     "tier": reputation.worker_tier(db, w.id)})
     return out
@@ -203,6 +206,9 @@ def book(job_id: str, worker: User = Depends(need_role("worker")), db: Session =
     except (offers.OfferError, agreements.AgreementError) as e:
         db.rollback()
         raise _http(e, 409)
+    from ..modules import daily
+    daily.mark_invite(db, job.id, worker.id, "accepted")
+    db.commit()
     return {"assignment_id": assignment.id, "status": assignment.status, "agreement_id": assignment.agreement_id}
 
 
@@ -260,10 +266,13 @@ def cancel(job_id: str, user: User = Depends(need_role("hirer")), db: Session = 
         jobs.transition(db, j, S.cancelled, user.id)
     except jobs.IllegalTransition as e:
         raise _http(e, 409)
+    from ..modules import daily
     from ..modules.notifications import notify
-    for assignment in db.scalars(select(Assignment).where(Assignment.job_id == j.id,
-                                                           Assignment.status.in_(["assigned", "confirmed"]))):
+    active = list(db.scalars(select(Assignment).where(Assignment.job_id == j.id,
+                                                       Assignment.status.in_(["assigned", "confirmed"]))))
+    charged = daily.charge_late_cancellation(db, j, user, active)
+    for assignment in active:
         assignment.status = "cancelled"
         notify(db, assignment.worker_id, "job_cancelled", j.id)
     db.commit()
-    return {"status": j.status}
+    return {"status": j.status, "late_fee_workers": charged}

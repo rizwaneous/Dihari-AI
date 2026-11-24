@@ -60,6 +60,7 @@ def init_db(url: str | None = None):
     _Session = sessionmaker(bind=_engine, expire_on_commit=False)
     from . import models  # noqa: F401
     Base.metadata.create_all(_engine)
+    _add_missing_columns(_engine)
     if _engine.dialect.name == "postgresql":
         from .modules.geo import ensure_postgis
         ensure_postgis(_engine)
@@ -84,3 +85,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def _add_missing_columns(engine) -> None:
+    """Tiny forward-only migration: create_all() never alters existing tables, so columns added to a model later
+    (e.g. jobs.urgent) are added here with their default. Use Alembic once the schema settles."""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in have:
+                    continue
+                ddl = col.type.compile(dialect=engine.dialect)
+                default = col.default.arg if col.default is not None and not callable(col.default.arg) else None
+                lit = "" if default is None else (" DEFAULT " + ("1" if default is True else "0" if default is False else repr(default)))
+                if engine.dialect.name == "postgresql" and isinstance(default, bool):
+                    lit = " DEFAULT " + ("TRUE" if default else "FALSE")
+                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {col.name} {ddl}{lit}'))

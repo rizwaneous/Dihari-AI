@@ -28,9 +28,14 @@ class HirerIn(BaseModel):
 def me(user: User = Depends(current_user), db: Session = Depends(get_db)):
     out = {"id": user.id, "phone": user.phone, "role": user.role, "name": user.name,
            "country": user.country_code, "locale": user.locale}
+    from ..models import SafetyContact
+    from ..modules import daily
+    sc = db.get(SafetyContact, user.id)
+    out["safety_contact"] = sc and {"name": sc.name, "phone": sc.phone}
     if user.role == "worker":
         p = db.get(WorkerProfile, user.id)
         out["profile"] = p and {"trades": p.trades, "area_name": p.area_name, "lat": p.lat, "lon": p.lon, "radius_km": p.radius_km}
+        out["available_today"] = daily.is_available(db, user.id)
     else:
         p = db.get(HirerProfile, user.id)
         out["profile"] = p and {"hirer_type": p.hirer_type}
