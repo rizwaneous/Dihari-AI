@@ -1,10 +1,33 @@
+# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+*.egg-info/
+
+# Local data
 *.db
+*.sqlite3
+
+# Secrets (keep only the example file)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node / build output
 node_modules/
 dist/
+build/
+dev-dist/
+coverage/
+
+# Logs and OS files
+*.log
 .DS_Store
-*.egg-info/
+Thumbs.db
+
+# Local prototype archives
+.claude-prototype/
